@@ -4,8 +4,8 @@ from typing import Final
 
 
 class DNFSHA:
-    VERSION: Final[str] = "0.0.1"
+    VERSION: Final[str] = "0.1.0"
     CMDB_SUBTYPE: Final[str] = "Disk Monitoring and Mirroring"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "Scaffolding"
+    CMDB_CODENAME: Final[str] = "Project Scaffolding"
     INSTALL_DIR: Final[str] = "/opt/prod/nfs-ha"
