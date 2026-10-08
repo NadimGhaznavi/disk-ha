@@ -1,7 +1,7 @@
-# nfs-ha
+# disk-ha
 
 This project formalizes two existing scripts for disk health monitoring and
-scheduled disk mirroring on Wintermute, a single NFS server with two local disks.
+scheduled disk mirroring on Wintermute, a server with two local disks.
 Its purpose is to notify the operator when either disk starts failing, giving
 them time to act before a second disk failure causes data loss.
 

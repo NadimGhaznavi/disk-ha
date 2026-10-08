@@ -21,26 +21,26 @@ sudo scripts/upgrade.sh
 sudo scripts/restart.sh
 ```
 
-Installation bundles the server and its page into `/opt/prod/nfs-ha/bin/nfs-ha-web`,
+Installation bundles the server and its page into `/opt/prod/disk-ha/bin/disk-ha-web`,
 deploys the Python package and readable CMDB metadata, and enables
-`nfs-ha-web.service` at boot. The service runs under the persistent `nfsha` account;
+`disk-ha-web.service` at boot. The service runs under the persistent `diskha` account;
 serving this page requires no root privileges or disk access.
 
 ## Accounts and database
 
-Installation creates the `nfsha` Linux system account and group with a non-login
+Installation creates the `diskha` Linux system account and group with a non-login
 shell and no separate home directory. Application code stays root-owned;
-`/opt/prod/nfs-ha/data/` belongs to `nfsha` with mode `0700`.
+`/opt/prod/disk-ha/data/` belongs to `diskha` with mode `0700`.
 
 Following the BMDynIP provisioning pattern, installation creates:
 
-- MariaDB database `nfsha`, using `utf8mb4` with `utf8mb4_bin` collation.
-- Local MariaDB account `'nfsha'@'localhost'` with a generated password.
-- Root-owned credentials at `/opt/prod/nfs-ha/conf/database.env`, mode `0600`,
+- MariaDB database `diskha`, using `utf8mb4` with `utf8mb4_bin` collation.
+- Local MariaDB account `'diskha'@'localhost'` with a generated password.
+- Root-owned credentials at `/opt/prod/disk-ha/conf/database.env`, mode `0600`,
   inside the root-only `conf/` directory.
 
 The database account receives `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`,
-`ALTER`, `INDEX`, and `REFERENCES` privileges on `nfsha` only. The database
+`ALTER`, `INDEX`, and `REFERENCES` privileges on `diskha` only. The database
 currently has no application tables.
 
 Systemd supplies a private copy of `database.env` to the service through
@@ -58,18 +58,18 @@ Check readiness and logs:
 
 ```sh
 curl --fail http://127.0.0.1:23300/ready
-systemctl status nfs-ha-web.service
-journalctl -u nfs-ha-web.service
+systemctl status disk-ha-web.service
+journalctl -u disk-ha-web.service
 ```
 
 Remove the service and application with `sudo scripts/uninstall.sh`.
 Upgrade and removal preserve configuration, credentials, and saved data in
-`/opt/prod/nfs-ha/conf/` and `/opt/prod/nfs-ha/data/`.
+`/opt/prod/disk-ha/conf/` and `/opt/prod/disk-ha/data/`.
 
 ## Run from a checkout
 
 ```sh
-python3 -m nfs_ha.server
+python3 -m disk_ha.server
 ```
 
 Use `--host 127.0.0.1` to listen locally or `--port <port>` to override the port.

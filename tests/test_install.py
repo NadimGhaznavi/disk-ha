@@ -21,7 +21,7 @@ SPEC.loader.exec_module(installer)
 
 class InstallationTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix="nfs-ha-install-test-")
+        temporary = tempfile.TemporaryDirectory(prefix="disk-ha-install-test-")
         self.addCleanup(temporary.cleanup)
         self.target = Path(temporary.name) / "prod"
         for target, value in (("SystemAccount.provision", SimpleNamespace(pw_uid=os.geteuid(), pw_gid=os.getegid())),
@@ -30,8 +30,8 @@ class InstallationTests(unittest.TestCase):
                                         return_value=value)
             provisioning.start()
             self.addCleanup(provisioning.stop)
-        service = patch.object(installer.DNFSHA, "WEB_SERVICE_FILE",
-                               str(Path(temporary.name) / "nfs-ha-web.service"))
+        service = patch.object(installer.DDISKHA, "WEB_SERVICE_FILE",
+                               str(Path(temporary.name) / "disk-ha-web.service"))
         service.start()
         self.addCleanup(service.stop)
         control = patch.object(installer, "systemctl")
@@ -40,7 +40,7 @@ class InstallationTests(unittest.TestCase):
         readiness = patch.object(installer, "restart")
         self.restart = readiness.start()
         self.addCleanup(readiness.stop)
-        metadata = patch.object(installer.DNFSHA, "INSTALL_DIR", str(self.target))
+        metadata = patch.object(installer.DDISKHA, "INSTALL_DIR", str(self.target))
         metadata.start()
         self.addCleanup(metadata.stop)
         output = redirect_stdout(io.StringIO())
@@ -49,32 +49,32 @@ class InstallationTests(unittest.TestCase):
 
     def test_install_upgrade_and_uninstall_preserve_local_files(self):
         installer.install()
-        constants = self.target / "nfs_ha/constants/DNFSHA.py"
-        expected = (ROOT / "nfs_ha/constants/DNFSHA.py").read_bytes()
+        constants = self.target / "disk_ha/constants/DDISKHA.py"
+        expected = (ROOT / "disk_ha/constants/DDISKHA.py").read_bytes()
         self.assertEqual(constants.read_bytes(), expected)
         for directory in (self.target, self.target / "bin", constants.parent.parent, constants.parent):
             self.assertEqual(directory.stat().st_mode & 0o777, 0o755)
         self.assertEqual(constants.stat().st_mode & 0o777, 0o644)
-        executable = self.target / "bin/nfs-ha-web"
+        executable = self.target / "bin/disk-ha-web"
         self.assertEqual(executable.stat().st_mode & 0o777, 0o755)
         with zipfile.ZipFile(executable) as archive:
-            self.assertEqual(archive.read("nfs_ha/server/static/index.html"),
-                             (ROOT / "nfs_ha/server/static/index.html").read_bytes())
-        service = Path(installer.DNFSHA.WEB_SERVICE_FILE)
+            self.assertEqual(archive.read("disk_ha/server/static/index.html"),
+                             (ROOT / "disk_ha/server/static/index.html").read_bytes())
+        service = Path(installer.DDISKHA.WEB_SERVICE_FILE)
         self.assertEqual(service.stat().st_mode & 0o777, 0o644)
         self.assertIn(f"ExecStart={executable} --host 0.0.0.0 --port 23300", service.read_text())
-        self.assertIn("User=nfsha\nGroup=nfsha", service.read_text())
-        self.assertIn(f"LoadCredential=database.env:{installer.DNFSHA.DATABASE_ENV}", service.read_text())
+        self.assertIn("User=diskha\nGroup=diskha", service.read_text())
+        self.assertIn(f"LoadCredential=database.env:{installer.DDISKHA.DATABASE_ENV}", service.read_text())
         self.control.assert_any_call("enable", service.name)
         self.restart.assert_called_once_with()
         for name in ("conf", "data"):
             self.assertEqual((self.target / name).stat().st_mode & 0o777, 0o700)
         result = subprocess.run(
             ["/usr/bin/python3", "-B", "-c",
-             "from nfs_ha.constants.DNFSHA import DNFSHA; print(DNFSHA.VERSION)"],
+             "from disk_ha.constants.DDISKHA import DDISKHA; print(DDISKHA.VERSION)"],
             cwd=self.target, text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), installer.DNFSHA.VERSION)
+        self.assertEqual(result.stdout.strip(), installer.DDISKHA.VERSION)
         preserved = {}
         for name in ("conf/settings.json", "conf/credentials.env", "data/state.json"):
             path = self.target / name
@@ -86,7 +86,7 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(constants.read_bytes(), expected)
         installer.uninstall()
         installer.uninstall()
-        self.assertFalse((self.target / "nfs_ha").exists())
+        self.assertFalse((self.target / "disk_ha").exists())
         self.assertFalse(executable.exists())
         self.assertFalse(service.exists())
         self.control.assert_any_call("disable", "--now", service.name)
@@ -96,16 +96,16 @@ class InstallationTests(unittest.TestCase):
 
     def test_staging_failure_keeps_installed_metadata(self):
         installer.install()
-        constants = self.target / "nfs_ha/constants/DNFSHA.py"
+        constants = self.target / "disk_ha/constants/DDISKHA.py"
         original = constants.read_bytes()
         with patch.object(installer.shutil, "copytree", side_effect=OSError("Staging failed")):
             with self.assertRaisesRegex(OSError, "Staging failed"):
                 installer.install()
         self.assertEqual(constants.read_bytes(), original)
-        self.assertEqual(list(self.target.glob(".nfs-ha-install-*")), [])
+        self.assertEqual(list(self.target.glob(".disk-ha-install-*")), [])
 
     def test_wrappers_delegate_from_a_checkout_with_spaces(self):
-        with tempfile.TemporaryDirectory(prefix="nfs-ha-wrappers-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="disk-ha-wrappers-") as temporary:
             checkout = Path(temporary) / "checkout with spaces"
             scripts = checkout / "scripts"
             scripts.mkdir(parents=True)
@@ -134,11 +134,11 @@ class InstallationTests(unittest.TestCase):
                 patch("sys.argv", ["install.py", "install"]), \
                 patch("sys.stderr", new_callable=io.StringIO) as errors:
             self.assertEqual(installer.main(), 1)
-        self.assertIn("nfs-ha:", errors.getvalue())
+        self.assertIn("disk-ha:", errors.getvalue())
 
     def test_database_failure_does_not_replace_server_or_restart(self):
         installer.install()
-        archive = self.target / "bin/nfs-ha-web"
+        archive = self.target / "bin/disk-ha-web"
         before = archive.read_bytes()
         self.restart.reset_mock()
         with patch.object(installer.DatabaseProvisioning, "provision", side_effect=ValueError("Unavailable")):

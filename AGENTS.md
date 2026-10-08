@@ -2,7 +2,7 @@
 
 Read and follow [Coding Guidelines](pages/coding-guidelines.md) before making
 development changes in this repository. That document is the canonical guide
-for nfs-ha's development style, documentation, verification, and release ownership.
+for disk-ha's development style, documentation, verification, and release ownership.
 
 Read [Project scope](index.md) for the agreed disk monitoring and mirroring
 behavior before changing application workflows. NFS configuration, NFS failover,

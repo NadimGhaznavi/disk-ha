@@ -6,7 +6,7 @@ layout: single
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
 
-These are nfs-ha's development standards. MUST identifies a requirement;
+These are disk-ha's development standards. MUST identifies a requirement;
 SHOULD identifies a default whose exceptions need a concrete reason.
 
 ## Ownership and scope
@@ -50,18 +50,18 @@ against that source. Do not substitute an ad-hoc schema for the accepted model.
 | `index.md` | Sole documentation root |
 | `pages/` | Guides and documentation images |
 | `scripts/` | Maintenance and release tooling |
-| `nfs_ha/` | Python application package |
-| `nfs_ha/server/` | HTTP transport and static web interface |
-| `nfs_ha/constants/` | Version, CMDB metadata, and shared project constants |
+| `disk_ha/` | Python application package |
+| `disk_ha/server/` | HTTP transport and static web interface |
+| `disk_ha/constants/` | Version, CMDB metadata, and shared project constants |
 | `tests/` | Application, installation, and release verification |
 | `CHANGELOG.md` | User-visible changes |
 
 Add application modules and default configuration only as implementation
-requires them. Installed configuration belongs in `/opt/prod/nfs-ha/conf/`;
-saved data belongs in `/opt/prod/nfs-ha/data/`.
+requires them. Installed configuration belongs in `/opt/prod/disk-ha/conf/`;
+saved data belongs in `/opt/prod/disk-ha/data/`.
 
-`DNFSHA.VERSION` and `DNFSHA.CMDB_CODENAME` MUST remain single-line literal
-strings in `nfs_ha/constants/DNFSHA.py` for release tooling and CMDB discovery.
+`DDISKHA.VERSION` and `DDISKHA.CMDB_CODENAME` MUST remain single-line literal
+strings in `disk_ha/constants/DDISKHA.py` for release tooling and CMDB discovery.
 Keep `CMDB_SUBTYPE`, `CMDB_SUPPLIER`, and `INSTALL_DIR` in that same class.
 
 ## Configuration and external interfaces
@@ -79,7 +79,7 @@ Keep `CMDB_SUBTYPE`, `CMDB_SUPPLIER`, and `INSTALL_DIR` in that same class.
   delivery behind interfaces that own their commands and validate results.
 - Credentials and secrets MUST NOT appear in logs or command arguments.
 - Network and subprocess operations MUST have explicit timeouts.
-- Keep shared installation paths and command constants in `DNFSHA`. Keep
+- Keep shared installation paths and command constants in `DDISKHA`. Keep
   deployment-specific disk identities, paths, schedules, and notification
   settings in configuration.
 
@@ -98,11 +98,11 @@ Tests and routine verification MUST NOT synchronize production disks or send
 real operator notifications. Use temporary directories and simulated external
 interfaces unless the owner explicitly authorizes a live operation.
 
-Installation targets `/opt/prod/nfs-ha` through `DNFSHA.INSTALL_DIR`. The
+Installation targets `/opt/prod/disk-ha` through `DDISKHA.INSTALL_DIR`. The
 current installer deploys the Python package, readable CMDB metadata, and a
-bundled Web UI executable managed by `nfs-ha-web.service`. The Web UI serves a
-blank page on port `23300` as the persistent `nfsha` Linux account. Installation
-provisions the local `nfsha` MariaDB database and account, preserving credentials
+bundled Web UI executable managed by `disk-ha-web.service`. The Web UI serves a
+blank page on port `23300` as the persistent `diskha` Linux account. Installation
+provisions the local `diskha` MariaDB database and account, preserving credentials
 in `conf/database.env`. Disk workflows, application tables, and scheduling
 have not been implemented. See the
 [web interface guide]({{ site.baseurl }}{% link pages/web-interface.md %})
@@ -166,7 +166,7 @@ commit generated site output. Report checks that could not be run.
 Record meaningful changes under `## [Unreleased]` in `CHANGELOG.md`.
 Keep entries focused on user-visible outcomes.
 
-Release tooling MUST update `DNFSHA.VERSION` and `DNFSHA.CMDB_CODENAME` and
+Release tooling MUST update `DDISKHA.VERSION` and `DDISKHA.CMDB_CODENAME` and
 assign the changelog version and timestamp. `scripts/new-release.sh` takes a
 version, a message that becomes the codename, and an optional next feature branch.
 It runs from a clean, committed feature branch, merges through `dev` and `main`,

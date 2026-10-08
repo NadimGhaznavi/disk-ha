@@ -9,14 +9,14 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from nfs_ha.constants.DNFSHA import DNFSHA
-from nfs_ha.interface.DatabaseEnvironment import DatabaseEnvironment
-from nfs_ha.interface.DatabaseProvisioning import DatabaseProvisioning
+from disk_ha.constants.DDISKHA import DDISKHA
+from disk_ha.interface.DatabaseEnvironment import DatabaseEnvironment
+from disk_ha.interface.DatabaseProvisioning import DatabaseProvisioning
 
 
 class ProvisioningTests(unittest.TestCase):
     def setUp(self):
-        directory = tempfile.TemporaryDirectory(prefix="nfsha-database-")
+        directory = tempfile.TemporaryDirectory(prefix="diskha-database-")
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
         self.credentials = self.root / "conf/database.env"
@@ -24,12 +24,12 @@ class ProvisioningTests(unittest.TestCase):
         self.root_patch = patch.object(DatabaseProvisioning, "_require_root")
         self.root_patch.start()
         self.addCleanup(self.root_patch.stop)
-        password = patch("nfs_ha.interface.DatabaseProvisioning.secrets.token_hex",
+        password = patch("disk_ha.interface.DatabaseProvisioning.secrets.token_hex",
                          return_value="0123456789abcdef" * 4)
         password.start()
         self.addCleanup(password.stop)
         self.options = []
-        client = patch("nfs_ha.interface.DatabaseProvisioning.subprocess.run", side_effect=self.client)
+        client = patch("disk_ha.interface.DatabaseProvisioning.subprocess.run", side_effect=self.client)
         self.run = client.start()
         self.addCleanup(client.stop)
 
@@ -51,8 +51,8 @@ class ProvisioningTests(unittest.TestCase):
     def test_first_install_provisions_account_verifies_access_and_publishes_private_credentials(self):
         self.provisioner.provision()
         values = DatabaseEnvironment.read(self.credentials)
-        self.assertEqual(values["DB_NAME"], "nfsha")
-        self.assertEqual(values["DB_USER"], "nfsha")
+        self.assertEqual(values["DB_NAME"], "diskha")
+        self.assertEqual(values["DB_USER"], "diskha")
         self.assertEqual(values["DB_SOCKET"], "/run/mysqld/mysqld.sock")
         self.assertEqual(self.credentials.stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.credentials.stat().st_uid, os.geteuid())
@@ -62,8 +62,8 @@ class ProvisioningTests(unittest.TestCase):
         sql = admin.kwargs["input"]
         digest = hashlib.sha1(hashlib.sha1(values["DB_PASSWORD"].encode()).digest()).hexdigest().upper()
         self.assertIn(f"USING '*{digest}'", sql)
-        self.assertIn("CREATE DATABASE IF NOT EXISTS `nfsha`", sql)
-        self.assertIn("ON `nfsha`.* TO 'nfsha'@'localhost'", sql)
+        self.assertIn("CREATE DATABASE IF NOT EXISTS `diskha`", sql)
+        self.assertIn("ON `diskha`.* TO 'diskha'@'localhost'", sql)
         self.assertNotIn(values["DB_PASSWORD"], sql)
         self.assertNotIn("DROP ", sql)
         self.assertNotIn("ALTER USER 'root'", sql)
@@ -71,7 +71,7 @@ class ProvisioningTests(unittest.TestCase):
         self.assertIn("--protocol=socket", self.run.call_args.args[0])
         self.assertIn("--skip-ssl", admin.args[0])
         self.assertIn("--skip-ssl", application.args[0])
-        self.assertIn('database="nfsha"', self.options[0])
+        self.assertIn('database="diskha"', self.options[0])
         self.assertNotIn("host=", self.options[0])
         self.assertNotIn("port=", self.options[0])
         for call in self.run.call_args_list:
@@ -145,11 +145,11 @@ class ProvisioningTests(unittest.TestCase):
                 self.assertFalse(self.credentials.exists())
 
     def test_invalid_and_administrative_names_are_rejected_before_sql(self):
-        for database, user in (("nfsha`; DROP DATABASE other", "nfsha"),
-                               ("nfsha", "root"), ("mysql", "nfsha")):
+        for database, user in (("diskha`; DROP DATABASE other", "diskha"),
+                               ("diskha", "root"), ("mysql", "diskha")):
             with self.subTest(database=database, user=user), \
-                    patch.object(DNFSHA, "DATABASE_NAME", database), \
-                    patch.object(DNFSHA, "DATABASE_USER", user), self.assertRaises(ValueError):
+                    patch.object(DDISKHA, "DATABASE_NAME", database), \
+                    patch.object(DDISKHA, "DATABASE_USER", user), self.assertRaises(ValueError):
                 self.provisioner.provision()
         self.run.assert_not_called()
 

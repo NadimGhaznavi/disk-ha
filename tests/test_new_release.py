@@ -9,12 +9,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONSTANTS = "nfs_ha/constants/DNFSHA.py"
+CONSTANTS = "disk_ha/constants/DDISKHA.py"
 
 
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix="nfs-ha-release-")
+        temporary = tempfile.TemporaryDirectory(prefix="disk-ha-release-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.repo = self.root / "repo"
@@ -32,7 +32,7 @@ class ReleaseTests(unittest.TestCase):
             shutil.copy2(ROOT / name, destination)
         # Start every fixture before its first release, independently of this checkout's version.
         (self.repo / CONSTANTS).write_text(
-            'from typing import Final\n\nclass DNFSHA:\n    VERSION: Final[str] = "0.0.1"\n    CMDB_CODENAME: Final[str] = "Scaffolding"\n')
+            'from typing import Final\n\nclass DDISKHA:\n    VERSION: Final[str] = "0.0.1"\n    CMDB_CODENAME: Final[str] = "Scaffolding"\n')
         (self.repo / "CHANGELOG.md").write_text(
             '# Changelog\n\n## [Unreleased]\n\n### Summary\n\nFirst feature.\n')
         self.git("add", ".")
@@ -116,7 +116,7 @@ class ReleaseTests(unittest.TestCase):
             stream.write('    VERSION: Final[str] = "0.0.2"\n')
         self.git("add", ".")
         self.git("commit", "-m", "Duplicate version")
-        self.assert_rejected(("0.1.0", "Release"), "Cannot read nfs-ha release constants")
+        self.assert_rejected(("0.1.0", "Release"), "Cannot read disk-ha release constants")
 
     def test_help_uses_current_version_without_a_versioned_branch(self):
         self.git("switch", "-c", "feat/setup")

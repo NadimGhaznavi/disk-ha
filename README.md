@@ -1,5 +1,7 @@
-# nfs-ha
+# disk-ha
 Low-Tech disk mirroring application.
+
+Documentation: [diskha.osoylace.com](https://diskha.osoylace.com).
 
 Requires Python 3.10 or newer, systemd with credential support, and local MariaDB.
 From a checkout, run:
@@ -12,10 +14,10 @@ sudo scripts/uninstall.sh
 ```
 
 Installation deploys the application and readable CMDB metadata to
-`/opt/prod/nfs-ha` and starts `nfs-ha-web.service`.
+`/opt/prod/disk-ha` and starts `disk-ha-web.service`.
 Open `http://<server>:23300/` for the blank web interface.
-The service uses the `nfsha` Linux account; installation also provisions the
-`nfsha` MariaDB account and database. Upgrade and uninstall preserve accounts,
+The service uses the `diskha` Linux account; installation also provisions the
+`diskha` MariaDB account and database. Upgrade and uninstall preserve accounts,
 the database, `conf/`, and `data/`.
 See [web interface setup](pages/web-interface.md) for development and service commands.
 

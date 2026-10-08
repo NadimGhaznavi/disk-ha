@@ -9,13 +9,13 @@ import secrets
 import subprocess
 import tempfile
 
-from nfs_ha.constants.DNFSHA import DNFSHA
-from nfs_ha.interface.DatabaseEnvironment import DatabaseEnvironment
+from disk_ha.constants.DDISKHA import DDISKHA
+from disk_ha.interface.DatabaseEnvironment import DatabaseEnvironment
 
 
 class DatabaseProvisioning:
     def __init__(self, credentials: Path | None = None, admin_socket: str | None = None):
-        self.credentials = Path(DNFSHA.DATABASE_ENV) if credentials is None else Path(credentials)
+        self.credentials = Path(DDISKHA.DATABASE_ENV) if credentials is None else Path(credentials)
         self.admin_socket = admin_socket
 
     @staticmethod
@@ -28,15 +28,15 @@ class DatabaseProvisioning:
         environment = {key: value for key, value in os.environ.items()
                        if key not in {"MYSQL_PWD", "MYSQL_HOST", "MYSQL_TCP_PORT", "MYSQL_UNIX_PORT"}}
         try:
-            return subprocess.run([DNFSHA.MARIADB, *arguments], input=sql, text=True,
+            return subprocess.run([DDISKHA.MARIADB, *arguments], input=sql, text=True,
                                   capture_output=True, check=True, timeout=30, env=environment)
         except (OSError, subprocess.SubprocessError):
             # Client diagnostics may contain SQL or credentials; keep them out of output.
             raise ValueError(message) from None
 
     def _create_local(self):
-        database = DNFSHA.DATABASE_NAME
-        user = DNFSHA.DATABASE_USER
+        database = DDISKHA.DATABASE_NAME
+        user = DDISKHA.DATABASE_USER
         if not all(re.fullmatch(r"[A-Za-z0-9_]+", value) for value in (database, user)):
             raise ValueError("Local database and account names must contain letters, digits, or underscores.")
         if user == "root" or database in {"mysql", "sys", "information_schema", "performance_schema"}:
@@ -51,7 +51,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES ON `{data
 SELECT @@socket;
 """
         arguments = ["--no-defaults", "--user=root", "--protocol=socket", "--skip-ssl",
-                     f"--connect-timeout={DNFSHA.DATABASE_CONNECT_TIMEOUT}",
+                     f"--connect-timeout={DDISKHA.DATABASE_CONNECT_TIMEOUT}",
                      "--batch", "--skip-column-names"]
         if self.admin_socket:
             arguments.append("--socket=" + self.admin_socket)
@@ -81,11 +81,11 @@ SELECT @@socket;
             output.flush()
             arguments = ["--defaults-file=" + output.name,
                          "--protocol=" + ("socket" if "DB_SOCKET" in values else "tcp"),
-                         f"--connect-timeout={DNFSHA.DATABASE_CONNECT_TIMEOUT}", "--batch"]
+                         f"--connect-timeout={DDISKHA.DATABASE_CONNECT_TIMEOUT}", "--batch"]
             if "DB_SOCKET" in values:
                 arguments.append("--skip-ssl")
             self._run(arguments, "SELECT 1;",
-                      "Could not connect to the nfsha database with the saved credentials.")
+                      "Could not connect to the diskha database with the saved credentials.")
 
     def _publish(self, values):
         descriptor, temporary = tempfile.mkstemp(prefix=".database-", dir=self.credentials.parent)

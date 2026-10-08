@@ -5,26 +5,26 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from nfs_ha.constants.DNFSHA import DNFSHA
-from nfs_ha.interface.SystemAccount import SystemAccount
+from disk_ha.constants.DDISKHA import DDISKHA
+from disk_ha.interface.SystemAccount import SystemAccount
 
 
 class AccountTests(unittest.TestCase):
     def setUp(self):
-        self.account = SimpleNamespace(pw_uid=998, pw_gid=998, pw_shell=DNFSHA.NOLOGIN,
-                                       pw_dir=DNFSHA.INSTALL_DIR)
+        self.account = SimpleNamespace(pw_uid=998, pw_gid=998, pw_shell=DDISKHA.NOLOGIN,
+                                       pw_dir=DDISKHA.INSTALL_DIR)
         self.group = SimpleNamespace(gr_gid=998)
 
     def test_missing_account_and_group_are_created_without_login_or_home_creation(self):
         with patch("os.geteuid", return_value=0), \
                 patch("grp.getgrnam", side_effect=[KeyError(), self.group]), \
                 patch("pwd.getpwnam", side_effect=[KeyError(), self.account]), \
-                patch("nfs_ha.interface.SystemAccount.subprocess.run") as run:
+                patch("disk_ha.interface.SystemAccount.subprocess.run") as run:
             self.assertEqual(SystemAccount.provision(), self.account)
-        self.assertEqual(run.call_args_list[0].args[0], [DNFSHA.GROUPADD, "--system", "nfsha"])
+        self.assertEqual(run.call_args_list[0].args[0], [DDISKHA.GROUPADD, "--system", "diskha"])
         command = run.call_args_list[1].args[0]
         self.assertIn("--no-create-home", command)
-        self.assertIn(DNFSHA.NOLOGIN, command)
+        self.assertIn(DDISKHA.NOLOGIN, command)
         self.assertIn("--system", command)
         for call in run.call_args_list:
             self.assertEqual(call.kwargs, {"check": True, "timeout": 30})
@@ -33,7 +33,7 @@ class AccountTests(unittest.TestCase):
         with patch("os.geteuid", return_value=0), \
                 patch("grp.getgrnam", return_value=self.group), \
                 patch("pwd.getpwnam", return_value=self.account), \
-                patch("nfs_ha.interface.SystemAccount.subprocess.run") as run:
+                patch("disk_ha.interface.SystemAccount.subprocess.run") as run:
             self.assertEqual(SystemAccount.provision(), self.account)
         run.assert_not_called()
 
@@ -46,7 +46,7 @@ class AccountTests(unittest.TestCase):
                 with patch("os.geteuid", return_value=0), \
                         patch("grp.getgrnam", return_value=self.group), \
                         patch("pwd.getpwnam", return_value=account), \
-                        patch("nfs_ha.interface.SystemAccount.subprocess.run") as run:
+                        patch("disk_ha.interface.SystemAccount.subprocess.run") as run:
                     with self.assertRaises(ValueError):
                         SystemAccount.provision()
                     run.assert_not_called()

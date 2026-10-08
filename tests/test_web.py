@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 
 from http.server import ThreadingHTTPServer
-from nfs_ha.server.__main__ import WebHandler
+from disk_ha.server.__main__ import WebHandler
 from test_install import installer
 
 
@@ -41,7 +41,7 @@ class WebTests(unittest.TestCase):
         cls.thread.join(timeout=5)
 
     def test_blank_page_and_head(self):
-        expected = (ROOT / "nfs_ha/server/static/index.html").read_bytes()
+        expected = (ROOT / "disk_ha/server/static/index.html").read_bytes()
         with self.opener.open(self.url + "/?test=1", timeout=2) as response:
             self.assertEqual(response.status, 200)
             self.assertEqual(response.read(), expected)
@@ -54,24 +54,24 @@ class WebTests(unittest.TestCase):
     def test_readiness_and_unknown_paths(self):
         with self.opener.open(self.url + "/ready", timeout=2) as response:
             self.assertEqual(json.load(response), {"ready": True})
-        for path in ("/unknown", "/../constants/DNFSHA.py", "/conf/credentials.env"):
+        for path in ("/unknown", "/../constants/DDISKHA.py", "/conf/credentials.env"):
             with self.assertRaises(HTTPError) as raised:
                 self.opener.open(self.url + path, timeout=2)
             self.assertEqual(raised.exception.code, 404)
             raised.exception.close()
 
     def test_packaged_server_serves_without_checkout(self):
-        with tempfile.TemporaryDirectory(prefix="nfs-ha-web-test-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="disk-ha-web-test-") as temporary:
             target = Path(temporary) / "prod"
-            with patch.object(installer.DNFSHA, "INSTALL_DIR", str(target)), \
-                    patch.object(installer.DNFSHA, "WEB_SERVICE_FILE", str(Path(temporary) / "service")), \
+            with patch.object(installer.DDISKHA, "INSTALL_DIR", str(target)), \
+                    patch.object(installer.DDISKHA, "WEB_SERVICE_FILE", str(Path(temporary) / "service")), \
                     patch.object(installer.SystemAccount, "provision",
                                  return_value=SimpleNamespace(pw_uid=os.geteuid(), pw_gid=os.getegid())), \
                     patch.object(installer.DatabaseProvisioning, "provision"), \
                     patch.object(installer, "systemctl"), patch.object(installer, "restart"), \
                     redirect_stdout(io.StringIO()):
                 installer.install()
-            archive = target / "bin/nfs-ha-web"
+            archive = target / "bin/disk-ha-web"
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 port = listener.getsockname()[1]
@@ -82,7 +82,7 @@ class WebTests(unittest.TestCase):
                 self.assertTrue(select.select([process.stdout], [], [], 5)[0], "Startup timed out")
                 self.assertIn(f"http://127.0.0.1:{port}/", process.stdout.readline())
                 with self.opener.open(f"http://127.0.0.1:{port}/", timeout=2) as response:
-                    self.assertEqual(response.read(), (ROOT / "nfs_ha/server/static/index.html").read_bytes())
+                    self.assertEqual(response.read(), (ROOT / "disk_ha/server/static/index.html").read_bytes())
             finally:
                 process.terminate()
                 process.communicate(timeout=5)
@@ -92,7 +92,7 @@ class WebTests(unittest.TestCase):
             # An occupied port must fail, rather than report successful startup.
             stdout, stderr = process.communicate(timeout=5)
             self.assertEqual(process.returncode, 1)
-            self.assertIn("nfs-ha:", stderr)
+            self.assertIn("disk-ha:", stderr)
             self.assertNotIn("Web UI:", stdout)
             process = subprocess.Popen(
                 [sys.executable, "-u", str(archive), "--host", "127.0.0.1", "--port", "0"],
@@ -109,8 +109,8 @@ class ReadinessTests(unittest.TestCase):
         with patch.object(installer, "systemctl") as control, \
                 patch.object(installer, "build_opener", return_value=opener), redirect_stdout(io.StringIO()):
             installer.restart()
-        control.assert_any_call("restart", "nfs-ha-web.service")
-        control.assert_any_call("is-active", "--quiet", "nfs-ha-web.service")
+        control.assert_any_call("restart", "disk-ha-web.service")
+        control.assert_any_call("is-active", "--quiet", "disk-ha-web.service")
         args, kwargs = opener.open.call_args
         self.assertEqual(args[0].full_url, "http://127.0.0.1:23300/ready")
         self.assertEqual(args[0].method, "HEAD")
