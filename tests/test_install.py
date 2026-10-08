@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import patch
 
 
@@ -21,6 +22,16 @@ class InstallationTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="nfs-ha-install-test-")
         self.addCleanup(temporary.cleanup)
         self.target = Path(temporary.name) / "prod"
+        service = patch.object(installer.DNFSHA, "WEB_SERVICE_FILE",
+                               str(Path(temporary.name) / "nfs-ha-web.service"))
+        service.start()
+        self.addCleanup(service.stop)
+        control = patch.object(installer, "systemctl")
+        self.control = control.start()
+        self.addCleanup(control.stop)
+        readiness = patch.object(installer, "restart")
+        self.restart = readiness.start()
+        self.addCleanup(readiness.stop)
         metadata = patch.object(installer.DNFSHA, "INSTALL_DIR", str(self.target))
         metadata.start()
         self.addCleanup(metadata.stop)
@@ -36,6 +47,17 @@ class InstallationTests(unittest.TestCase):
         for directory in (self.target, self.target / "bin", constants.parent.parent, constants.parent):
             self.assertEqual(directory.stat().st_mode & 0o777, 0o755)
         self.assertEqual(constants.stat().st_mode & 0o777, 0o644)
+        executable = self.target / "bin/nfs-ha-web"
+        self.assertEqual(executable.stat().st_mode & 0o777, 0o755)
+        with zipfile.ZipFile(executable) as archive:
+            self.assertEqual(archive.read("nfs_ha/server/static/index.html"),
+                             (ROOT / "nfs_ha/server/static/index.html").read_bytes())
+        service = Path(installer.DNFSHA.WEB_SERVICE_FILE)
+        self.assertEqual(service.stat().st_mode & 0o777, 0o644)
+        self.assertIn(f"ExecStart={executable} --host 0.0.0.0 --port 23300", service.read_text())
+        self.assertIn("DynamicUser=yes", service.read_text())
+        self.control.assert_any_call("enable", service.name)
+        self.restart.assert_called_once_with()
         for name in ("conf", "data"):
             self.assertEqual((self.target / name).stat().st_mode & 0o777, 0o700)
         result = subprocess.run(
@@ -56,6 +78,9 @@ class InstallationTests(unittest.TestCase):
         installer.uninstall()
         installer.uninstall()
         self.assertFalse((self.target / "nfs_ha").exists())
+        self.assertFalse(executable.exists())
+        self.assertFalse(service.exists())
+        self.control.assert_any_call("disable", "--now", service.name)
         for path, content in preserved.items():
             self.assertEqual(path.read_bytes(), content)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
@@ -78,7 +103,7 @@ class InstallationTests(unittest.TestCase):
             (scripts / "install.py").write_text(
                 "import sys\nfrom pathlib import Path\n"
                 "print(Path.cwd())\nprint(sys.argv[1])\nraise SystemExit(7)\n")
-            for action in ("install", "upgrade", "uninstall"):
+            for action in ("install", "upgrade", "uninstall", "restart"):
                 wrapper = scripts / f"{action}.sh"
                 wrapper.write_bytes((ROOT / "scripts" / wrapper.name).read_bytes())
                 result = subprocess.run(["bash", str(wrapper)], cwd=temporary,
@@ -93,6 +118,14 @@ class InstallationTests(unittest.TestCase):
             self.assertEqual(installer.main(), 1)
         self.assertIn("Run this script as root", errors.getvalue())
         self.assertFalse(self.target.exists())
+
+    def test_service_failure_returns_failing_status(self):
+        self.control.side_effect = subprocess.CalledProcessError(1, ["systemctl"])
+        with patch.object(installer.os, "geteuid", return_value=0), \
+                patch("sys.argv", ["install.py", "install"]), \
+                patch("sys.stderr", new_callable=io.StringIO) as errors:
+            self.assertEqual(installer.main(), 1)
+        self.assertIn("nfs-ha:", errors.getvalue())
 
 
 if __name__ == "__main__":

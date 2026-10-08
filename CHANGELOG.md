@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Blank web interface on port `23300`, with a bundled server and systemd service
+  managed by installation, upgrade, restart, and uninstall scripts.
+
 ## [0.1.0] - 2026-10-08 @ 04:48
 
 ### Added
