@@ -50,7 +50,8 @@ against that source. Do not substitute an ad-hoc schema for the accepted model.
 | `index.md` | Sole documentation root |
 | `pages/` | Guides and documentation images |
 | `scripts/` | Maintenance and release tooling |
-| `nfs_ha/` | Python application package; currently scaffolding |
+| `nfs_ha/` | Python application package |
+| `nfs_ha/server/` | HTTP transport and static web interface |
 | `nfs_ha/constants/` | Version, CMDB metadata, and shared project constants |
 | `tests/` | Application, installation, and release verification |
 | `CHANGELOG.md` | User-visible changes |
@@ -98,9 +99,14 @@ real operator notifications. Use temporary directories and simulated external
 interfaces unless the owner explicitly authorizes a live operation.
 
 Installation targets `/opt/prod/nfs-ha` through `DNFSHA.INSTALL_DIR`. The
-current installer deploys the Python package and readable CMDB metadata; runtime
-commands and scheduling have not been implemented. Do not assume a Web UI,
-database, executable archive, cron job, or systemd service exists.
+current installer deploys the Python package, readable CMDB metadata, and a
+bundled Web UI executable managed by `nfs-ha-web.service`. The Web UI serves a
+blank page on port `23300` as the persistent `nfsha` Linux account. Installation
+provisions the local `nfsha` MariaDB database and account, preserving credentials
+in `conf/database.env`. Disk workflows, application tables, and scheduling
+have not been implemented. See the
+[web interface guide]({{ site.baseurl }}{% link pages/web-interface.md %})
+for account permissions and credential delivery.
 
 Installation MUST deploy all required application modules and refresh readable
 CMDB metadata on upgrade. Uninstallation MUST remove deployed application code

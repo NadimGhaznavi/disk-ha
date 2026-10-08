@@ -63,8 +63,9 @@ project's scope.
 - Notification settings, including whether to retain the email destination in
   the existing health-check script.
 
-No implementation or scheduling changes have been made as part of this initial
-scope discussion.
+The [web interface]({{ site.baseurl }}{% link pages/web-interface.md %}) currently
+serves a blank page on port `23300`. Disk monitoring and synchronization
+are not yet implemented.
 
 ## Development
 
