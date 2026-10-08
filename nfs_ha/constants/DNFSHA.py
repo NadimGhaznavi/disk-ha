@@ -15,3 +15,13 @@ class DNFSHA:
     WEB_READY_PATH: Final[str] = "/ready"
     WEB_SERVICE_FILE: Final[str] = "/etc/systemd/system/nfs-ha-web.service"
     SYSTEMCTL: Final[str] = "/usr/bin/systemctl"
+    SERVICE_USER: Final[str] = "nfsha"
+    SERVICE_GROUP: Final[str] = "nfsha"
+    USERADD: Final[str] = "/usr/sbin/useradd"
+    GROUPADD: Final[str] = "/usr/sbin/groupadd"
+    NOLOGIN: Final[str] = "/usr/sbin/nologin"
+    MARIADB: Final[str] = "/usr/bin/mariadb"
+    DATABASE_NAME: Final[str] = "nfsha"
+    DATABASE_USER: Final[str] = "nfsha"
+    DATABASE_ENV: Final[str] = "/opt/prod/nfs-ha/conf/database.env"
+    DATABASE_CONNECT_TIMEOUT: Final[int] = 5

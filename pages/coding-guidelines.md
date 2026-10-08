@@ -101,8 +101,12 @@ interfaces unless the owner explicitly authorizes a live operation.
 Installation targets `/opt/prod/nfs-ha` through `DNFSHA.INSTALL_DIR`. The
 current installer deploys the Python package, readable CMDB metadata, and a
 bundled Web UI executable managed by `nfs-ha-web.service`. The Web UI serves a
-blank page on port `23300` as a systemd dynamic user. Disk workflows, a database,
-and scheduling have not been implemented.
+blank page on port `23300` as the persistent `nfsha` Linux account. Installation
+provisions the local `nfsha` MariaDB database and account, preserving credentials
+in `conf/database.env`. Disk workflows, application tables, and scheduling
+have not been implemented. See the
+[web interface guide]({{ site.baseurl }}{% link pages/web-interface.md %})
+for account permissions and credential delivery.
 
 Installation MUST deploy all required application modules and refresh readable
 CMDB metadata on upgrade. Uninstallation MUST remove deployed application code

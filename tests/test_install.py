@@ -3,11 +3,13 @@
 from contextlib import redirect_stdout
 import importlib.util
 import io
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 import zipfile
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -22,6 +24,12 @@ class InstallationTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="nfs-ha-install-test-")
         self.addCleanup(temporary.cleanup)
         self.target = Path(temporary.name) / "prod"
+        for target, value in (("SystemAccount.provision", SimpleNamespace(pw_uid=os.geteuid(), pw_gid=os.getegid())),
+                              ("DatabaseProvisioning.provision", None)):
+            provisioning = patch.object(getattr(installer, target.split('.')[0]), target.split('.')[1],
+                                        return_value=value)
+            provisioning.start()
+            self.addCleanup(provisioning.stop)
         service = patch.object(installer.DNFSHA, "WEB_SERVICE_FILE",
                                str(Path(temporary.name) / "nfs-ha-web.service"))
         service.start()
@@ -55,7 +63,8 @@ class InstallationTests(unittest.TestCase):
         service = Path(installer.DNFSHA.WEB_SERVICE_FILE)
         self.assertEqual(service.stat().st_mode & 0o777, 0o644)
         self.assertIn(f"ExecStart={executable} --host 0.0.0.0 --port 23300", service.read_text())
-        self.assertIn("DynamicUser=yes", service.read_text())
+        self.assertIn("User=nfsha\nGroup=nfsha", service.read_text())
+        self.assertIn(f"LoadCredential=database.env:{installer.DNFSHA.DATABASE_ENV}", service.read_text())
         self.control.assert_any_call("enable", service.name)
         self.restart.assert_called_once_with()
         for name in ("conf", "data"):
@@ -126,6 +135,17 @@ class InstallationTests(unittest.TestCase):
                 patch("sys.stderr", new_callable=io.StringIO) as errors:
             self.assertEqual(installer.main(), 1)
         self.assertIn("nfs-ha:", errors.getvalue())
+
+    def test_database_failure_does_not_replace_server_or_restart(self):
+        installer.install()
+        archive = self.target / "bin/nfs-ha-web"
+        before = archive.read_bytes()
+        self.restart.reset_mock()
+        with patch.object(installer.DatabaseProvisioning, "provision", side_effect=ValueError("Unavailable")):
+            with self.assertRaisesRegex(ValueError, "Unavailable"):
+                installer.install()
+        self.assertEqual(archive.read_bytes(), before)
+        self.restart.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 # nfs-ha
 Low-Tech disk mirroring application.
 
-Requires Python 3.10 or newer and systemd. From a checkout, run:
+Requires Python 3.10 or newer, systemd with credential support, and local MariaDB.
+From a checkout, run:
 
 ```sh
 sudo scripts/install.sh
@@ -13,7 +14,9 @@ sudo scripts/uninstall.sh
 Installation deploys the application and readable CMDB metadata to
 `/opt/prod/nfs-ha` and starts `nfs-ha-web.service`.
 Open `http://<server>:23300/` for the blank web interface.
-Upgrade and uninstall preserve `conf/` and `data/`.
+The service uses the `nfsha` Linux account; installation also provisions the
+`nfsha` MariaDB account and database. Upgrade and uninstall preserve accounts,
+the database, `conf/`, and `data/`.
 See [web interface setup](pages/web-interface.md) for development and service commands.
 
 Create a release from a clean, committed feature branch with local `dev` and

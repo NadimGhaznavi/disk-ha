@@ -16,6 +16,8 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 
 from nfs_ha.constants.DNFSHA import DNFSHA
+from nfs_ha.interface.DatabaseProvisioning import DatabaseProvisioning
+from nfs_ha.interface.SystemAccount import SystemAccount
 
 
 def systemctl(*arguments: str) -> None:
@@ -53,9 +55,11 @@ def restart() -> None:
 
 
 def install() -> None:
-    for executable in ("/usr/bin/python3", DNFSHA.SYSTEMCTL):
+    for executable in ("/usr/bin/python3", DNFSHA.SYSTEMCTL, DNFSHA.MARIADB,
+                       DNFSHA.USERADD, DNFSHA.GROUPADD, DNFSHA.NOLOGIN):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
+    account = SystemAccount.provision()
     root = Path(DNFSHA.INSTALL_DIR)
     root.mkdir(parents=True, exist_ok=True)
     root.chmod(0o755)
@@ -63,6 +67,8 @@ def install() -> None:
         directory = root / name
         directory.mkdir(exist_ok=True)
         directory.chmod(0o755 if name == "bin" else 0o700)
+    os.chown(root / "data", account.pw_uid, account.pw_gid)
+    DatabaseProvisioning().provision()
     # Stage the package before replacing installed files. Individual replacements
     # are atomic, including the constants file read by CMDB scanners.
     with tempfile.TemporaryDirectory(prefix=".nfs-ha-install-", dir=root) as temporary:
@@ -91,7 +97,8 @@ def install() -> None:
     service = Path(DNFSHA.WEB_SERVICE_FILE)
     service.write_text(
         "[Unit]\nDescription=nfs-ha Web UI\nAfter=network.target\n\n"
-        "[Service]\nType=exec\nDynamicUser=yes\n"
+        f"[Service]\nType=exec\nUser={DNFSHA.SERVICE_USER}\nGroup={DNFSHA.SERVICE_GROUP}\n"
+        f"LoadCredential=database.env:{DNFSHA.DATABASE_ENV}\n"
         f"ExecStart={root}/bin/nfs-ha-web --host {DNFSHA.WEB_HOST} --port {DNFSHA.WEB_PORT}\n"
         "Restart=on-failure\nRestartSec=2\n\n[Install]\nWantedBy=multi-user.target\n")
     service.chmod(0o644)
@@ -113,7 +120,7 @@ def uninstall() -> None:
     if package.exists():
         shutil.rmtree(package)
     print("Removed nfs-ha's Web UI service, executable, Python package, and CMDB metadata; "
-          "configuration and data preserved.")
+          "accounts, database, configuration, credentials, and data preserved.")
 
 
 def main() -> int:

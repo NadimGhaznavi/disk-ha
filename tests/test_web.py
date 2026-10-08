@@ -3,6 +3,7 @@
 from contextlib import redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import select
 import socket
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 from threading import Thread
+from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
@@ -63,6 +65,9 @@ class WebTests(unittest.TestCase):
             target = Path(temporary) / "prod"
             with patch.object(installer.DNFSHA, "INSTALL_DIR", str(target)), \
                     patch.object(installer.DNFSHA, "WEB_SERVICE_FILE", str(Path(temporary) / "service")), \
+                    patch.object(installer.SystemAccount, "provision",
+                                 return_value=SimpleNamespace(pw_uid=os.geteuid(), pw_gid=os.getegid())), \
+                    patch.object(installer.DatabaseProvisioning, "provision"), \
                     patch.object(installer, "systemctl"), patch.object(installer, "restart"), \
                     redirect_stdout(io.StringIO()):
                 installer.install()
