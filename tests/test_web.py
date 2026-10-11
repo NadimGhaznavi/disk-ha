@@ -62,6 +62,16 @@ class WebTests(unittest.TestCase):
             self.assertEqual(raised.exception.code, 404)
             raised.exception.close()
 
+    def test_logo_get_and_head(self):
+        expected = (ROOT / "pages/images/diskha.png").read_bytes()
+        with self.opener.open(self.url + "/static/diskha.png", timeout=2) as response:
+            self.assertEqual(response.read(), expected)
+            self.assertEqual(response.headers["Content-Type"], "image/png")
+            self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        with self.opener.open(Request(self.url + "/static/diskha.png", method="HEAD"), timeout=2) as response:
+            self.assertEqual(int(response.headers["Content-Length"]), len(expected))
+            self.assertEqual(response.read(), b"")
+
     @patch("diskha.server.__main__.update_sync_schedule",
            return_value={"enabled": True, "expression": "0 */4 * * *"})
     def test_sync_schedule_update_and_output_page(self, update):
@@ -232,6 +242,10 @@ class WebTests(unittest.TestCase):
                     self.assertIn(b"Disk 1", page)
                     self.assertIn(b"Disk 2", page)
                     self.assertNotIn(b"{{disk", page)
+                    self.assertIn(b'src="/static/diskha.png"', page)
+                with self.opener.open(f"http://127.0.0.1:{port}/static/diskha.png", timeout=2) as response:
+                    self.assertEqual(response.headers["Content-Type"], "image/png")
+                    self.assertEqual(response.read(), (ROOT / "pages/images/diskha.png").read_bytes())
             finally:
                 process.terminate()
                 process.communicate(timeout=5)

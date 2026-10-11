@@ -3,6 +3,7 @@
 import argparse
 import json
 import subprocess
+from importlib.resources import files
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from diskha.constants.DDiskHA import DDiskHA
@@ -103,6 +104,8 @@ class WebHandler(BaseHTTPRequestHandler):
             status, body, content_type = 200, b'{"ready": true}\n', "application/json; charset=utf-8"
         elif path == "/":
             status, body, content_type = 200, render_page(), "text/html; charset=utf-8"
+        elif path == "/static/diskha.png":
+            status, body, content_type = 200, (files("diskha.server") / "static/diskha.png").read_bytes(), "image/png"
         else:
             status, body, content_type = 404, b"Not found.\n", "text/plain; charset=utf-8"
         self.respond(status, body, content_type)

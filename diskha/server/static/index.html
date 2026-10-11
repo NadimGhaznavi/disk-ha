@@ -14,10 +14,15 @@
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; }
     .masthead {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
       padding: 1.2rem 2rem;
       background: #1a2a2e;
       border-bottom: 1px solid #345155;
     }
+    .masthead-logo { display: block; flex-shrink: 0; }
+    .masthead-logo img { display: block; width: 4rem; height: 4rem; object-fit: contain; }
     .masthead h1 { margin: 0; font-size: 1.3rem; font-weight: 700; }
     .masthead a { color: #83d5c5; text-decoration: none; }
     main a { color: #83d5c5; }
@@ -60,8 +65,11 @@
 </head>
 <body>
   <header class="masthead">
-    <h1><a href="/">disk-ha</a></h1>
-    <p>Vigilent since <time datetime="2026-10">October 2026</time></p>
+    <a class="masthead-logo" href="/" aria-label="disk-ha home"><img src="/static/diskha.png" alt="" width="64" height="64"></a>
+    <div>
+      <h1><a href="/">disk-ha</a></h1>
+      <p>Vigilent since <time datetime="2026-10">October 2026</time></p>
+    </div>
   </header>
   <main>
     <section class="panel" aria-labelledby="drive-heading">
