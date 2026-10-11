@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-11 @ 06:16
+
 This release remembers **Pikaia** who last walked Earth over 505 million years ago.
 
 ### Added
