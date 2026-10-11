@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is named for the **Nuralagus** who died out about 3 million years ago.
+
+- Added a [DiskHA Logo](/pages/images/diskha.png).
+
 ## [1.3.1] - 2026-10-11 @ 04:23
 
 The **Kioea** release is in memory of the species which became extinct in 1859.
