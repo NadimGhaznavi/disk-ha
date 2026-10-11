@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The **Kioea** release is in memory of the species which became extinct in 1859.
+
 ### Fixed
 
 - Restore the legacy home alias on reinstall when the `diskha` account remains
