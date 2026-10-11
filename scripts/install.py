@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import pwd
 import shutil
 import subprocess
 import sys
@@ -60,7 +61,7 @@ def restart() -> None:
     print(f"disk-ha Web UI: active on port {DDiskHA.WEB_PORT} (listening on {DDiskHA.WEB_HOST})")
 
 
-def installation_root() -> Path:
+def installation_root(*, installing: bool = False) -> Path:
     """Use the CMDB path while retaining legacy state and lock identities."""
     root = Path(DDiskHA.INSTALL_DIR)
     legacy = Path(DDiskHA.LEGACY_INSTALL_DIR)
@@ -73,6 +74,16 @@ def installation_root() -> Path:
         else:
             # Keep saved state and active worker locks at the same filesystem location.
             root.symlink_to(legacy, target_is_directory=True)
+    elif installing:
+        try:
+            account = pwd.getpwnam(DDiskHA.SERVICE_USER)
+        except KeyError:
+            account = None
+        if account is not None and account.pw_dir == str(legacy):
+            # Removal may leave the service account after its home was deleted.
+            # Restore that path without changing the persistent account.
+            root.mkdir(parents=True, exist_ok=True)
+            legacy.symlink_to(root, target_is_directory=True)
     return root
 
 
@@ -82,7 +93,7 @@ def install() -> None:
                        DDiskHA.SUDO, DDiskHA.VISUDO):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
-    root = installation_root()
+    root = installation_root(installing=True)
     account = SystemAccount.provision()
     upgrading = (root / "bin/disk-ha-check").exists()
     sync_upgrading = (root / "bin/disk-ha-sync").exists()
