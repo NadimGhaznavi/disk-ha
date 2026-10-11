@@ -12,7 +12,7 @@ def _schedule(request: dict) -> dict:
     result = subprocess.run(
         [DDiskHA.SUDO, "-n", str(Path(DDiskHA.INSTALL_DIR) / "bin/disk-ha-schedule")],
         input=json.dumps(request), capture_output=True, text=True,
-        timeout=130 if request["action"] in ("update", "update-sync") else 35)
+        timeout=130 if request["action"] in ("update", "update-sync", "read-drives", "check-drives", "save-drives") else 35)
     if result.returncode == 2:
         raise ValueError(json.loads(result.stdout)["error"])
     if result.returncode != 0:

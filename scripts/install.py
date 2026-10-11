@@ -90,7 +90,7 @@ def installation_root(*, installing: bool = False) -> Path:
 def install() -> None:
     for executable in ("/usr/bin/python3", DDiskHA.SYSTEMCTL, DDiskHA.MARIADB,
                        DDiskHA.USERADD, DDiskHA.GROUPADD, DDiskHA.NOLOGIN, DDiskHA.CRONTAB,
-                       DDiskHA.SUDO, DDiskHA.VISUDO):
+                       DDiskHA.SUDO, DDiskHA.VISUDO, DDiskHA.FINDMNT, DDiskHA.LSBLK):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
     root = installation_root(installing=True)

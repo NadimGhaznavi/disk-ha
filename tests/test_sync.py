@@ -206,6 +206,6 @@ class SyncTests(unittest.TestCase):
             with self.assertRaises(subprocess.TimeoutExpired):
                 RsyncMirror().run(SyncConfiguration(self.config), io.StringIO())
         command = popen.call_args.args[0]
-        self.assertEqual(command, [DDiskHA.RSYNC, "-avr", "--delete", "--", str(self.source) + "/", str(self.target) + "/"])
+        self.assertEqual(command, [DDiskHA.RSYNC, "-avr", "--one-file-system", "--delete", "--", str(self.source) + "/", str(self.target) + "/"])
         self.assertTrue(popen.call_args.kwargs["start_new_session"])
         kill.assert_called_once_with(1234, signal.SIGKILL)

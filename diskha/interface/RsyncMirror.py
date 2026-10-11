@@ -12,7 +12,7 @@ from diskha.interface.SyncConfiguration import SyncConfiguration
 class RsyncMirror:
     def run(self, configuration: SyncConfiguration, output: TextIO) -> int:
         with subprocess.Popen(
-            [DDiskHA.RSYNC, "-avr", "--delete", "--", str(configuration.source) + "/",
+            [DDiskHA.RSYNC, "-avr", "--one-file-system", "--delete", "--", str(configuration.source) + "/",
              str(configuration.target) + "/"],
             stdout=output, stderr=subprocess.STDOUT, start_new_session=True) as process:
             try:

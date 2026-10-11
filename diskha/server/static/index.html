@@ -40,6 +40,12 @@
     input[type="text"] { background: #11191c; color: #e5efed; border: 1px solid #adc5c4;
                            border-radius: .3rem; padding: .6rem; font: inherit; max-width: 100%; }
     #schedule-form, #sync-schedule-form { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+    #drive-form { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .8rem; align-items: center; }
+    .drive-actions { grid-column: 1 / -1; display: flex; gap: .5rem; flex-wrap: wrap; }
+    .drive-table { overflow-x: auto; }
+    .drives td:nth-child(3) { text-align: left; min-width: 15rem; overflow-wrap: anywhere; }
+    .drives small { color: #adc5c4; }
+    #drive-preview { white-space: pre-wrap; overflow-wrap: anywhere; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: .8rem; border-bottom: 1px solid #345155; }
     thead th { background: #1a2a2e; }
@@ -52,6 +58,7 @@
     :focus-visible { outline: 2px solid #83d5c5; outline-offset: 3px; }
     @media (max-width: 600px) {
       .masthead, main, .panel { padding: 1rem; }
+      #drive-form { grid-template-columns: minmax(0, 1fr); }
       th, td { padding: .6rem .4rem; }
       .health table, .health tbody, .health tr, .health th, .health td { display: block; }
       .health thead { display: none; }
@@ -74,13 +81,7 @@
   <main>
     <section class="panel" aria-labelledby="drive-heading">
       <h2 id="drive-heading">Drive Configuration</h2>
-      <table class="drives">
-        <thead><tr><th scope="col">Device</th><th scope="col">Role</th><th scope="col">Capacity (TB)</th><th scope="col">Usage (TB)</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">Disk 1</th><td>Source</td><td>{{disk1_capacity}}</td><td>{{disk1_usage}}</td></tr>
-          <tr><th scope="row">Disk 2</th><td>Target</td><td>{{disk2_capacity}}</td><td>{{disk2_usage}}</td></tr>
-        </tbody>
-      </table>
+      {{drive_configuration}}
     </section>
     <section class="panel" aria-labelledby="schedule-heading">
       <h2 id="schedule-heading">Health Check Schedule</h2>
@@ -102,6 +103,53 @@
     </section>
   </main>
   <script>
+    const driveForm = document.getElementById('drive-form');
+    if (driveForm) {
+      const source = document.getElementById('source-directory');
+      const target = document.getElementById('target-directory');
+      const check = document.getElementById('check-drives');
+      const save = document.getElementById('save-drives');
+      const status = document.getElementById('drive-status');
+      const preview = document.getElementById('drive-preview');
+      driveForm.addEventListener('input', () => {
+        save.disabled = true;
+        preview.hidden = true;
+        status.textContent = 'Check the edited directories before saving.';
+      });
+      async function selectDirectories(saving) {
+        const selection = { source: source.value, target: target.value };
+        source.disabled = target.disabled = check.disabled = save.disabled = true;
+        preview.hidden = true;
+        status.textContent = saving ? 'Checking and saving directories…' : 'Checking directories and drives…';
+        try {
+          const response = await fetch(saving ? '/drives/save' : '/drives/check', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(selection)
+          });
+          if (!response.ok) {
+            status.textContent = await response.text();
+            return;
+          }
+          const settings = await response.json();
+          if (saving) {
+            window.location.reload();
+            return;
+          }
+          preview.textContent = ['source', 'target'].map(role => {
+            const entry = settings[role];
+            return `${role === 'source' ? 'Source' : 'Target'}: ${entry.path}\nMount: ${entry.mount}\nDrive: ${entry.disk}\nUUID: ${entry.uuid}\nFilesystem capacity: ${(entry.capacity / 1e12).toFixed(2)} TB; free: ${(entry.free / 1e12).toFixed(2)} TB`;
+          }).join('\n\n');
+          preview.hidden = false;
+          status.textContent = 'Two distinct local drives detected. Review the direction, then save directories.';
+          save.disabled = false;
+        } catch (error) {
+          status.textContent = 'Request failed. Reload to check the saved settings before retrying.';
+        } finally {
+          source.disabled = target.disabled = check.disabled = false;
+        }
+      }
+      driveForm.addEventListener('submit', event => { event.preventDefault(); selectDirectories(false); });
+      save.addEventListener('click', () => selectDirectories(true));
+    }
     const syncForm = document.getElementById('sync-schedule-form');
     if (syncForm) syncForm.addEventListener('submit', async event => {
       event.preventDefault();

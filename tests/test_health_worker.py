@@ -61,7 +61,7 @@ class HealthWorkerTests(unittest.TestCase):
         self.assertIsNotNone(checked_at.tzinfo)
         self.assertEqual(checked_at.microsecond, 0)
         with patch("diskha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)), \
-                patch("diskha.server.DrivePage.read_usage", return_value=None):
+                patch("diskha.server.DrivePage.read_drives", side_effect=OSError("not installed")):
             page = render_page().decode()
         self.assertIn("Disk Health", page)
         self.assertIn(checked_at.astimezone().strftime("%Y-%m-%d %H:%M:%S"), page)

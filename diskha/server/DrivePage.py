@@ -5,35 +5,57 @@ from datetime import datetime
 from html import escape
 from pathlib import Path
 import subprocess
+import re
 
 from diskha.constants.DDiskHA import DDiskHA
 from diskha.interface.HealthResult import HealthResult
-from diskha.interface.DriveUsage import read_usage
+from diskha.interface.DriveControl import read_drives
 from diskha.interface.HealthControl import read_schedule, read_contact, read_sync_schedule
 
 
 def render_page() -> bytes:
     page = (files("diskha.server") / "static/index.html").read_text(encoding="utf-8")
-    for number in (1, 2):
-        try:
-            usage = read_usage(f"/exports/disk{number}")
-        except OSError:
-            capacity = used = "Unavailable"
-        else:
-            if usage is None:
-                capacity = used = "Not mounted"
-            else:
-                capacity = f"{usage.total / 10**12:,.2f}"
-                used = f"{usage.used / 10**12:,.2f}"
-        page = page.replace(f"{{{{disk{number}_capacity}}}}", capacity)
-        page = page.replace(f"{{{{disk{number}_usage}}}}", used)
-    page = page.replace("{{health}}", render_health())
     schedule, run_control = render_schedule()
-    page = page.replace("{{schedule}}", schedule)
-    page = page.replace("{{run_control}}", run_control)
-    page = page.replace("{{email_notification}}", render_email_notification())
-    page = page.replace("{{sync_schedule}}", render_sync_schedule())
+    values = {"drive_configuration": render_drives(), "health": render_health(),
+              "schedule": schedule, "run_control": run_control,
+              "email_notification": render_email_notification(), "sync_schedule": render_sync_schedule()}
+    # Directory names may contain braces; only expand the original template.
+    page = re.sub(r"\{\{(\w+)\}\}", lambda match: values[match[1]], page)
     return page.encode("utf-8")
+
+
+def render_drives() -> str:
+    try:
+        settings = read_drives()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return '<p>Drive settings unavailable. Check the installed settings helper and reload.</p>'
+    rows = []
+    for number, role in enumerate(("source", "target"), 1):
+        entry = settings[role]
+        readings = [f'{entry[key] / 10**12:,.2f}' if entry[key] is not None else "Unavailable"
+                    for key in ("capacity", "used", "free")]
+        details = (f'<small>Mount: {escape(entry["mount"])}<br>UUID: {escape(entry["uuid"])}<br>'
+                   f'Drive: {escape(entry["disk"])}</small>')
+        if entry.get("error"):
+            details += f'<p>{escape(entry["error"])}</p>'
+        rows.append(f'<tr><th scope="row">Disk {number}</th><td>{role.title()}</td>'
+                    f'<td>{escape(entry["path"])}<br>{details}</td>'
+                    + ''.join(f'<td>{value}</td>' for value in readings) + '</tr>')
+    return ('<form id="drive-form">'
+            '<label for="source-directory">Source directory</label>'
+            f'<input id="source-directory" type="text" maxlength="4096" required value="{escape(settings["source"]["path"], quote=True)}">'
+            '<label for="target-directory">Target directory</label>'
+            f'<input id="target-directory" type="text" maxlength="4096" required value="{escape(settings["target"]["path"], quote=True)}">'
+            '<div class="drive-actions"><button id="check-drives" type="submit">Check directories</button> '
+            '<button id="save-drives" type="button" disabled>Save directories</button></div></form>'
+            '<p>Use existing directories on two distinct local drives. Saving changes the next scheduled sync. '
+            'Files absent from the source are deleted from the target.</p>'
+            '<p id="drive-status" role="status" aria-live="polite"></p>'
+            '<pre id="drive-preview" hidden></pre>'
+            '<div class="drive-table"><table class="drives"><thead><tr>'
+            '<th scope="col">Device</th><th scope="col">Role</th><th scope="col">Saved directory / drive</th>'
+            '<th scope="col">Capacity (TB)</th><th scope="col">Usage (TB)</th><th scope="col">Free (TB)</th>'
+            '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>')
 
 
 def render_sync_schedule() -> str:

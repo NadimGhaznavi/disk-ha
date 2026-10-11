@@ -63,7 +63,7 @@ class ScheduleHelperTests(unittest.TestCase):
         with patch.object(schedule.os, "geteuid", return_value=0), \
                 patch.object(schedule.os, "umask"), \
                 patch.object(schedule.sys, "argv", ["disk-ha-schedule"]), \
-                patch.object(schedule.sys, "stdin", io.StringIO("x" * 1025)), \
+                patch.object(schedule.sys, "stdin", io.StringIO("x" * 16385)), \
                 redirect_stdout(io.StringIO()) as output:
             self.assertEqual(schedule.main(), 2)
             self.assertIn("too large", json.loads(output.getvalue())["error"])

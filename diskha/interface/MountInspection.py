@@ -6,6 +6,7 @@ import subprocess
 
 from diskha.constants.DDiskHA import DDiskHA
 from diskha.interface.SyncConfiguration import SyncConfiguration
+from diskha.interface.DirectoryInspection import DirectoryInspection
 
 
 class MountInspection:
@@ -28,6 +29,16 @@ class MountInspection:
         return current["maj:min"]
 
     def verify(self, configuration: SyncConfiguration) -> None:
+        if configuration.disks is not None:
+            values = DirectoryInspection().pair(str(configuration.source), str(configuration.target))
+            for number, role in enumerate(("source", "target")):
+                expected = {"path": str(getattr(configuration, role)),
+                            "mount": str(getattr(configuration, role + "_mount")),
+                            "uuid": getattr(configuration, role + "_uuid"),
+                            "disk": configuration.disks[number].device_path}
+                if any(values[role][key] != value for key, value in expected.items()):
+                    raise ValueError(f"The {role} directory no longer matches its saved drive identity.")
+            return
         source = self.inspect(configuration.source, configuration.source_uuid)
         target = self.inspect(configuration.target, configuration.target_uuid)
         if source == target:
