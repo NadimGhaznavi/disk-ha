@@ -4,10 +4,10 @@ from typing import Final
 
 
 class DDiskHA:
-    VERSION: Final[str] = "1.3.2"
+    VERSION: Final[str] = "1.4.0"
     CMDB_SUBTYPE: Final[str] = "Disk Monitoring and Mirroring"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "Nuralagus"
+    CMDB_CODENAME: Final[str] = "Opabinia"
     INSTALL_DIR: Final[str] = "/opt/prod/diskha"
     LEGACY_INSTALL_DIR: Final[str] = "/opt/prod/disk-ha"
     WEB_HOST: Final[str] = "0.0.0.0"

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-11 @ 05:53
+
 This release remembers the **Opabinia** who went extinct about 505 million years ago.
 
 ### Added
