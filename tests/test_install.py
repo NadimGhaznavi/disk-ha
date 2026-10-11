@@ -23,6 +23,7 @@ SPEC.loader.exec_module(installer)
 
 class InstallationTests(unittest.TestCase):
     def setUp(self):
+        self.provision_account = installer.SystemAccount.provision
         temporary = tempfile.TemporaryDirectory(prefix="disk-ha-install-test-")
         self.addCleanup(temporary.cleanup)
         self.target = Path(temporary.name) / "prod"
@@ -150,6 +151,24 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(saved.read_text(), "existing state")
         self.assertFalse((self.target / "bin").exists())
         self.control.assert_not_called()
+
+    def test_reinstall_restores_deleted_legacy_home_for_retained_account(self):
+        account = SimpleNamespace(pw_uid=984, pw_gid=979, pw_shell=installer.DDiskHA.NOLOGIN,
+                                  pw_dir=str(self.legacy))
+        with patch("pwd.getpwnam", return_value=account), \
+                patch("grp.getgrnam", return_value=SimpleNamespace(gr_gid=979)), \
+                patch("os.geteuid", return_value=0):
+            root = installer.installation_root(installing=True)
+            self.assertEqual(self.provision_account(), account)
+        self.assertEqual(root, self.target)
+        self.assertTrue(self.legacy.is_symlink())
+        self.assertTrue(self.legacy.samefile(self.target))
+        installer.install()
+        self.assertTrue((self.target / "diskha/constants/DDiskHA.py").is_file())
+        installer.install()
+        installer.uninstall()
+        self.assertTrue(self.legacy.samefile(self.target))
+        self.assertTrue((self.legacy / "conf/health.json").is_file())
 
     def test_uninstall_legacy_installation_without_prior_upgrade(self):
         installer.install()

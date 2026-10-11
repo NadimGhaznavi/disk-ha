@@ -74,6 +74,8 @@ data, worker locks, and the account's existing home stay in place; services and
 cron commands use the new path. If both paths exist and refer to different
 directories, installation fails before changing saved state. Reconcile them
 before retrying.
+If the legacy account remains after both installation directories were removed,
+reinstallation restores its home as an alias to `/opt/prod/diskha`.
 
 ## Accounts and database
 

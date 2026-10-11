@@ -34,7 +34,18 @@ class SystemAccount:
         if account.pw_dir == DDiskHA.LEGACY_INSTALL_DIR:
             root = Path(DDiskHA.INSTALL_DIR)
             home_matches = root.exists() and root.samefile(account.pw_dir)
-        if (account.pw_uid == 0 or account.pw_gid != group.gr_gid
-                or account.pw_shell != DDiskHA.NOLOGIN or not home_matches):
-            raise ValueError("Existing diskha account must have the project home, diskha group, and nologin shell.")
+        mismatches = []
+        if account.pw_uid == 0:
+            mismatches.append("UID is 0; a non-root account is required")
+        if account.pw_gid != group.gr_gid:
+            mismatches.append(f"primary GID is {account.pw_gid}; expected {group.gr_gid} "
+                              f"({DDiskHA.SERVICE_GROUP})")
+        if account.pw_shell != DDiskHA.NOLOGIN:
+            mismatches.append(f"shell is {account.pw_shell!r}; expected {DDiskHA.NOLOGIN!r}")
+        if not home_matches:
+            mismatches.append(f"home is {account.pw_dir!r}; expected {DDiskHA.INSTALL_DIR!r} "
+                              "or the legacy home with a matching installation alias")
+        if mismatches:
+            raise ValueError(f"Existing {DDiskHA.SERVICE_USER} account is incompatible: "
+                             + "; ".join(mismatches) + ".")
         return account

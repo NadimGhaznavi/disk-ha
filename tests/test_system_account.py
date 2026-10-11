@@ -40,8 +40,10 @@ class AccountTests(unittest.TestCase):
         run.assert_not_called()
 
     def test_conflicting_existing_account_is_rejected(self):
-        for field, value in (("pw_uid", 0), ("pw_gid", 0), ("pw_shell", "/bin/bash"),
-                             ("pw_dir", "/root")):
+        for field, value, message in (("pw_uid", 0, "UID is 0"),
+                                      ("pw_gid", 0, "primary GID is 0; expected 998"),
+                                      ("pw_shell", "/bin/bash", "shell is '/bin/bash'"),
+                                      ("pw_dir", "/root", "home is '/root'")):
             with self.subTest(field=field):
                 account = SimpleNamespace(**vars(self.account))
                 setattr(account, field, value)
@@ -49,9 +51,24 @@ class AccountTests(unittest.TestCase):
                         patch("grp.getgrnam", return_value=self.group), \
                         patch("pwd.getpwnam", return_value=account), \
                         patch("diskha.interface.SystemAccount.subprocess.run") as run:
-                    with self.assertRaises(ValueError):
+                    with self.assertRaisesRegex(ValueError, message):
                         SystemAccount.provision()
                     run.assert_not_called()
+
+    def test_error_reports_all_conflicting_settings(self):
+        self.account.pw_gid = 123
+        self.account.pw_dir = "/home/diskha"
+        self.account.pw_shell = "/bin/bash"
+        with patch("os.geteuid", return_value=0), \
+                patch("grp.getgrnam", return_value=self.group), \
+                patch("pwd.getpwnam", return_value=self.account), \
+                patch("diskha.interface.SystemAccount.subprocess.run") as run:
+            with self.assertRaises(ValueError) as error:
+                SystemAccount.provision()
+        self.assertIn("primary GID is 123; expected 998 (diskha)", str(error.exception))
+        self.assertIn("shell is '/bin/bash'", str(error.exception))
+        self.assertIn("home is '/home/diskha'", str(error.exception))
+        run.assert_not_called()
 
     def test_legacy_account_home_is_reused_only_when_installation_alias_matches(self):
         with tempfile.TemporaryDirectory() as temporary:
