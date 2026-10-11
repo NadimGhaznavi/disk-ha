@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is in memory of the **Juratyrant** who walked on Earth 149 million years ago.
+
 ### Changed
 
 - Make installed applications discoverable as `DiskHA` in CMDB using the
