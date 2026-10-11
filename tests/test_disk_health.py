@@ -9,12 +9,12 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from disk_ha.activity.CheckDisks import CheckDisks
-from disk_ha.constants.DDiskHA import DDiskHA
-from disk_ha.entity.Disk import Disk
-from disk_ha.entity.DiskHealth import DiskHealth
-from disk_ha.interface.EmailNotification import EmailNotification, NotificationError
-from disk_ha.interface.SmartInspection import SmartInspection
+from diskha.activity.CheckDisks import CheckDisks
+from diskha.constants.DDiskHA import DDiskHA
+from diskha.entity.Disk import Disk
+from diskha.entity.DiskHealth import DiskHealth
+from diskha.interface.EmailNotification import EmailNotification, NotificationError
+from diskha.interface.SmartInspection import SmartInspection
 
 
 HEALTHY = "SMART overall-health self-assessment test result: PASSED\n"
@@ -103,9 +103,9 @@ class DiskHealthTests(unittest.TestCase):
 
 class SmartInspectionTests(unittest.TestCase):
     def test_verbose_inspection_requests_extended_smart_data(self):
-        with patch("disk_ha.interface.SmartInspection.os.stat",
+        with patch("diskha.interface.SmartInspection.os.stat",
                    return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
-                patch("disk_ha.interface.SmartInspection.subprocess.run",
+                patch("diskha.interface.SmartInspection.subprocess.run",
                       return_value=SimpleNamespace(stdout=HEALTHY + "Device Model: Example\n", returncode=0)) as run:
             health = SmartInspection(10).inspect_verbose(DISKS[0])
         self.assertFalse(health.failed)
@@ -118,8 +118,8 @@ class SmartInspectionTests(unittest.TestCase):
     def test_verbose_optional_command_failure_does_not_change_primary_health(self):
         for status in (0, 4, 8):
             with self.subTest(status=status), \
-                    patch("disk_ha.interface.SmartInspection.os.stat", return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
-                    patch("disk_ha.interface.SmartInspection.subprocess.run", side_effect=[
+                    patch("diskha.interface.SmartInspection.os.stat", return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
+                    patch("diskha.interface.SmartInspection.subprocess.run", side_effect=[
                         SimpleNamespace(stdout=HEALTHY, returncode=status),
                         SimpleNamespace(stdout=HEALTHY + "SCT Error Recovery Control command not supported\n", returncode=4)]):
                 health = SmartInspection(10).inspect_verbose(DISKS[0])
@@ -129,9 +129,9 @@ class SmartInspectionTests(unittest.TestCase):
             self.assertIn("SCT Error Recovery", health.smart_output)
 
     def test_nonzero_smart_status_is_parsed_and_command_has_timeout(self):
-        with patch("disk_ha.interface.SmartInspection.os.stat",
+        with patch("diskha.interface.SmartInspection.os.stat",
                    return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
-                patch("disk_ha.interface.SmartInspection.subprocess.run",
+                patch("diskha.interface.SmartInspection.subprocess.run",
                       return_value=SimpleNamespace(stdout=HEALTHY, returncode=8)) as run:
             health = SmartInspection(10).inspect(DISKS[0])
         self.assertTrue(health.failed)
@@ -143,8 +143,8 @@ class SmartInspectionTests(unittest.TestCase):
     def test_missing_or_non_block_device_does_not_run_command(self):
         for value in (FileNotFoundError("Missing"), SimpleNamespace(st_mode=stat.S_IFREG)):
             with self.subTest(value=value), \
-                    patch("disk_ha.interface.SmartInspection.os.stat") as metadata, \
-                    patch("disk_ha.interface.SmartInspection.subprocess.run") as run:
+                    patch("diskha.interface.SmartInspection.os.stat") as metadata, \
+                    patch("diskha.interface.SmartInspection.subprocess.run") as run:
                 if isinstance(value, Exception):
                     metadata.side_effect = value
                 else:
@@ -156,9 +156,9 @@ class SmartInspectionTests(unittest.TestCase):
         for failure in (FileNotFoundError(), PermissionError(),
                         subprocess.TimeoutExpired("smartctl", 10), None):
             with self.subTest(failure=failure), \
-                    patch("disk_ha.interface.SmartInspection.os.stat",
+                    patch("diskha.interface.SmartInspection.os.stat",
                           return_value=SimpleNamespace(st_mode=stat.S_IFBLK)), \
-                    patch("disk_ha.interface.SmartInspection.subprocess.run", side_effect=failure,
+                    patch("diskha.interface.SmartInspection.subprocess.run", side_effect=failure,
                           return_value=SimpleNamespace(stdout="", returncode=-9)):
                 self.assertTrue(SmartInspection(10).inspect(DISKS[0]).failed)
 
@@ -176,18 +176,18 @@ class EmailNotificationTests(unittest.TestCase):
 
     def test_missing_mail_configuration_is_explicit_and_does_not_invoke_msmtp(self):
         self.mail_config.unlink()
-        with patch("disk_ha.interface.EmailNotification.subprocess.run") as command:
+        with patch("diskha.interface.EmailNotification.subprocess.run") as command:
             with self.assertRaisesRegex(NotificationError, "configuration file is missing"):
                 self.notification.send(self.report, "host")
             command.assert_not_called()
-        with patch("disk_ha.interface.EmailNotification.Path.is_file", side_effect=PermissionError("secret")), \
-                patch("disk_ha.interface.EmailNotification.subprocess.run") as command:
+        with patch("diskha.interface.EmailNotification.Path.is_file", side_effect=PermissionError("secret")), \
+                patch("diskha.interface.EmailNotification.subprocess.run") as command:
             with self.assertRaisesRegex(NotificationError, "configuration file is missing or inaccessible"):
                 self.notification.send(self.report, "host")
             command.assert_not_called()
 
     def test_email_contains_host_and_combined_report(self):
-        with patch("disk_ha.interface.EmailNotification.subprocess.run",
+        with patch("diskha.interface.EmailNotification.subprocess.run",
                    return_value=SimpleNamespace(returncode=0)) as run:
             self.notification.send(self.report, "host")
         self.assertEqual(run.call_args.args[0],
@@ -207,7 +207,7 @@ class EmailNotificationTests(unittest.TestCase):
     def test_delivery_errors_do_not_expose_mail_diagnostics_or_credentials(self):
         for failure in (OSError("secret"), subprocess.TimeoutExpired("secret", 10), None):
             with self.subTest(failure=failure), \
-                    patch("disk_ha.interface.EmailNotification.subprocess.run", side_effect=failure,
+                    patch("diskha.interface.EmailNotification.subprocess.run", side_effect=failure,
                           return_value=SimpleNamespace(returncode=1)), \
                     self.assertRaises(NotificationError) as caught:
                 self.notification.send(self.report, "host")
@@ -216,7 +216,7 @@ class EmailNotificationTests(unittest.TestCase):
     def test_requested_report_contains_raw_smart_output_for_both_healthy_disks(self):
         report = CheckDisks(DISKS, "host", lambda disk: DiskHealth(disk, smart_output=f"Full data: {disk.device_path}\n"),
                             Mock()).run()
-        with patch("disk_ha.interface.EmailNotification.subprocess.run",
+        with patch("diskha.interface.EmailNotification.subprocess.run",
                    return_value=SimpleNamespace(returncode=0)) as command:
             self.notification.send_report(report, "host")
         message = message_from_string(command.call_args.kwargs["input"])

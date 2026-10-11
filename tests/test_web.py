@@ -18,8 +18,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 
 from http.server import ThreadingHTTPServer
-from disk_ha.server.__main__ import WebHandler
-from disk_ha.server.DrivePage import render_page
+from diskha.server.__main__ import WebHandler
+from diskha.server.DrivePage import render_page
 from test_install import installer
 
 
@@ -41,7 +41,7 @@ class WebTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join(timeout=5)
 
-    @patch("disk_ha.server.DrivePage.read_usage", return_value=None)
+    @patch("diskha.server.DrivePage.read_usage", return_value=None)
     def test_page_and_head(self, usage):
         expected = render_page()
         with self.opener.open(self.url + "/?test=1", timeout=2) as response:
@@ -62,7 +62,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(raised.exception.code, 404)
             raised.exception.close()
 
-    @patch("disk_ha.server.__main__.update_sync_schedule",
+    @patch("diskha.server.__main__.update_sync_schedule",
            return_value={"enabled": True, "expression": "0 */4 * * *"})
     def test_sync_schedule_update_and_output_page(self, update):
         body = b'{"enabled":true,"expression":"0 */4 * * *"}'
@@ -78,7 +78,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 403)
         raised.exception.close()
         update.assert_not_called()
-        with patch("disk_ha.server.__main__.render_sync_output", return_value=iter([b"<pre>output", b"</pre>"])):
+        with patch("diskha.server.__main__.render_sync_output", return_value=iter([b"<pre>output", b"</pre>"])):
             with self.opener.open(self.url + "/sync/output", timeout=2) as response:
                 self.assertEqual(response.read(), b"<pre>output</pre>")
                 self.assertEqual(response.headers["Content-Type"], "text/html; charset=utf-8")
@@ -87,7 +87,7 @@ class WebTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertEqual(response.read(), b"")
 
-    @patch("disk_ha.server.__main__.request_sync")
+    @patch("diskha.server.__main__.request_sync")
     def test_sync_now_requires_same_origin_empty_post_and_reports_failure(self, sync):
         with self.opener.open(Request(self.url + "/sync/run", data=b"",
                                       headers={"Origin": self.url}), timeout=2) as response:
@@ -114,7 +114,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 503)
         raised.exception.close()
 
-    @patch("disk_ha.server.__main__.request_check")
+    @patch("diskha.server.__main__.request_check")
     def test_manual_check_accepts_only_same_origin_post(self, check):
         with self.opener.open(Request(self.url + "/health/run", data=b"",
                                       headers={"Origin": self.url}), timeout=2) as response:
@@ -133,7 +133,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 404)
         raised.exception.close()
 
-    @patch("disk_ha.server.__main__.request_check", side_effect=OSError("denied"))
+    @patch("diskha.server.__main__.request_check", side_effect=OSError("denied"))
     def test_manual_check_reports_start_failure(self, check):
         with self.assertRaises(HTTPError) as raised:
             self.opener.open(Request(self.url + "/health/run", data=b"",
@@ -142,7 +142,7 @@ class WebTests(unittest.TestCase):
         self.assertIn(b"Cannot start check", raised.exception.read())
         raised.exception.close()
 
-    @patch("disk_ha.server.__main__.request_email_report")
+    @patch("diskha.server.__main__.request_email_report")
     def test_email_report_requires_same_origin_post_and_reports_start_failure(self, email):
         with self.opener.open(Request(self.url + "/health/email-report", data=b"",
                                       headers={"Origin": self.url}), timeout=2) as response:
@@ -168,7 +168,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 503)
         raised.exception.close()
 
-    @patch("disk_ha.server.__main__.update_schedule",
+    @patch("diskha.server.__main__.update_schedule",
            return_value={"enabled": True, "expression": "*/20 * * * *"})
     def test_schedule_update_and_validation_errors(self, update):
         def post(body, origin=None):

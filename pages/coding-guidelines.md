@@ -50,19 +50,23 @@ against that source. Do not substitute an ad-hoc schema for the accepted model.
 | `index.md` | Sole documentation root |
 | `pages/` | Guides and documentation images |
 | `scripts/` | Maintenance and release tooling |
-| `disk_ha/` | Python application package |
-| `disk_ha/server/` | HTTP transport and static web interface |
-| `disk_ha/constants/` | Version, CMDB metadata, and shared project constants |
+| `diskha/` | Python application package |
+| `diskha/server/` | HTTP transport and static web interface |
+| `diskha/constants/` | Version, CMDB metadata, and shared project constants |
 | `tests/` | Application, installation, and release verification |
 | `CHANGELOG.md` | User-visible changes |
 
 Add application modules and default configuration only as implementation
-requires them. Installed configuration belongs in `/opt/prod/disk-ha/conf/`;
-saved data belongs in `/opt/prod/disk-ha/data/`.
+requires them. Installed configuration belongs in `/opt/prod/diskha/conf/`;
+saved data belongs in `/opt/prod/diskha/data/`.
 
 `DDiskHA.VERSION` and `DDiskHA.CMDB_CODENAME` MUST remain single-line literal
-strings in `disk_ha/constants/DDiskHA.py` for release tooling and CMDB discovery.
+strings in `diskha/constants/DDiskHA.py` for release tooling and CMDB discovery.
 Keep `CMDB_SUBTYPE`, `CMDB_SUPPLIER`, and `INSTALL_DIR` in that same class.
+CMDB registers this application as `DiskHA` and discovers
+`/opt/prod/diskha/diskha/constants/DDiskHA.py`. Preserve that naming convention.
+Keep the legacy installation alias for upgrades so saved state and worker locks
+stay at the same filesystem location.
 
 ## Configuration and external interfaces
 
@@ -98,7 +102,7 @@ Tests and routine verification MUST NOT synchronize production disks or send
 real operator notifications. Use temporary directories and simulated external
 interfaces unless the owner explicitly authorizes a live operation.
 
-Installation targets `/opt/prod/disk-ha` through `DDiskHA.INSTALL_DIR`. The
+Installation targets `/opt/prod/diskha` through `DDiskHA.INSTALL_DIR`. The
 current installer deploys the Python package, readable CMDB metadata, and a
 bundled Web UI executable managed by `disk-ha-web.service`. The Web UI serves a
 title bar and a Drive Configuration table on port `23300` as the persistent `diskha` Linux account. Installation

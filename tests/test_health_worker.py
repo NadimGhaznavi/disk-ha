@@ -15,14 +15,14 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from disk_ha.health import run
-from disk_ha.entity.Disk import Disk
-from disk_ha.entity.DiskHealth import DiskHealth
-from disk_ha.interface.HealthConfiguration import HealthConfiguration, validate_expression
-from disk_ha.interface.HealthResult import HealthResult
-from disk_ha.interface.HealthSchedule import HealthSchedule
-from disk_ha.interface.EmailNotification import NotificationError
-from disk_ha.server.DrivePage import render_page
+from diskha.health import run
+from diskha.entity.Disk import Disk
+from diskha.entity.DiskHealth import DiskHealth
+from diskha.interface.HealthConfiguration import HealthConfiguration, validate_expression
+from diskha.interface.HealthResult import HealthResult
+from diskha.interface.HealthSchedule import HealthSchedule
+from diskha.interface.EmailNotification import NotificationError
+from diskha.server.DrivePage import render_page
 
 
 class HealthWorkerTests(unittest.TestCase):
@@ -43,8 +43,8 @@ class HealthWorkerTests(unittest.TestCase):
         self.config.write_text(json.dumps(self.values))
 
     def worker(self, inspect, notify=None):
-        with patch("disk_ha.interface.SmartInspection.SmartInspection.inspect", side_effect=inspect), \
-                patch("disk_ha.interface.EmailNotification.EmailNotification.send",
+        with patch("diskha.interface.SmartInspection.SmartInspection.inspect", side_effect=inspect), \
+                patch("diskha.interface.EmailNotification.EmailNotification.send",
                       side_effect=notify) as email, redirect_stdout(io.StringIO()):
             status = run(self.config, self.result)
         return status, email
@@ -60,8 +60,8 @@ class HealthWorkerTests(unittest.TestCase):
         checked_at = datetime.fromisoformat(result["checked_at"])
         self.assertIsNotNone(checked_at.tzinfo)
         self.assertEqual(checked_at.microsecond, 0)
-        with patch("disk_ha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)), \
-                patch("disk_ha.server.DrivePage.read_usage", return_value=None):
+        with patch("diskha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)), \
+                patch("diskha.server.DrivePage.read_usage", return_value=None):
             page = render_page().decode()
         self.assertIn("Disk Health", page)
         self.assertIn(checked_at.astimezone().strftime("%Y-%m-%d %H:%M:%S"), page)
@@ -74,7 +74,7 @@ class HealthWorkerTests(unittest.TestCase):
         result = HealthResult(self.result).read()
         try:
             with patch.dict(os.environ, {"TZ": "America/Toronto"}), \
-                    patch("disk_ha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)):
+                    patch("diskha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)):
                 time.tzset()
                 for timestamp, local in (("2026-01-02T02:03:04.123456+00:00", "2026-01-01 21:03:04"),
                                          ("2026-07-02T02:03:04.123456+00:00", "2026-07-01 22:03:04")):
@@ -96,7 +96,7 @@ class HealthWorkerTests(unittest.TestCase):
         self.assertEqual(status, 1)
         email.assert_called_once()
         self.assertEqual(HealthResult(self.result).read()["notification_error"], "<delivery failed>")
-        with patch("disk_ha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)):
+        with patch("diskha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)):
             page = render_page().decode()
         self.assertIn("&lt;failed &amp; degraded&gt;", page)
         self.assertIn("&lt;delivery failed&gt;", page)
@@ -106,12 +106,12 @@ class HealthWorkerTests(unittest.TestCase):
         self.result.write_text("previous result")
         self.values.update(enabled=False, expression=None, mail=None)
         self.save_config()
-        with patch("disk_ha.health.CheckDisks") as activity, redirect_stdout(io.StringIO()):
+        with patch("diskha.health.CheckDisks") as activity, redirect_stdout(io.StringIO()):
             self.assertEqual(run(self.config, self.result), 0)
             activity.assert_not_called()
         self.values.update(enabled=True)
         with self.config.with_suffix(".lock").open("a") as lock, \
-                patch("disk_ha.health.CheckDisks") as activity, redirect_stdout(io.StringIO()):
+                patch("diskha.health.CheckDisks") as activity, redirect_stdout(io.StringIO()):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.assertEqual(run(self.config, self.result), 0)
             activity.assert_not_called()
@@ -125,9 +125,9 @@ class HealthWorkerTests(unittest.TestCase):
                    healthy.replace("PASSED", "FAILED"), "SMART unavailable")
         for output in outputs:
             with self.subTest(output=output), \
-                    patch("disk_ha.interface.SmartInspection.SmartInspection.inspect_verbose",
+                    patch("diskha.interface.SmartInspection.SmartInspection.inspect_verbose",
                           side_effect=lambda disk: DiskHealth.from_smart(disk, output, 0)) as inspect, \
-                    patch("disk_ha.interface.EmailNotification.EmailNotification.send_report") as email, \
+                    patch("diskha.interface.EmailNotification.EmailNotification.send_report") as email, \
                     redirect_stdout(io.StringIO()):
                 status = run(self.config, self.result, email_report=True)
             self.assertEqual(inspect.call_count, 2)
@@ -138,9 +138,9 @@ class HealthWorkerTests(unittest.TestCase):
         self.assertFalse(HealthConfiguration(self.config).enabled)
 
     def test_report_email_failure_is_persisted(self):
-        with patch("disk_ha.interface.SmartInspection.SmartInspection.inspect_verbose",
+        with patch("diskha.interface.SmartInspection.SmartInspection.inspect_verbose",
                    side_effect=lambda disk: DiskHealth(disk)), \
-                patch("disk_ha.interface.EmailNotification.EmailNotification.send_report",
+                patch("diskha.interface.EmailNotification.EmailNotification.send_report",
                       side_effect=NotificationError("Email delivery timed out.")), redirect_stdout(io.StringIO()):
             self.assertEqual(run(self.config, self.result, email_report=True), 1)
         self.assertEqual(HealthResult(self.result).read()["notification_error"], "Email delivery timed out.")
@@ -149,7 +149,7 @@ class HealthWorkerTests(unittest.TestCase):
         self.values.update(enabled=False, expression=None, mail=None)
         self.save_config()
         self.result.write_text("previous result")
-        with patch("disk_ha.health.CheckDisks") as activity, self.assertRaisesRegex(ValueError, "email"):
+        with patch("diskha.health.CheckDisks") as activity, self.assertRaisesRegex(ValueError, "email"):
             run(self.config, self.result, email_report=True)
         activity.assert_not_called()
         self.assertEqual(self.result.read_text(), "previous result")
@@ -176,9 +176,9 @@ class HealthWorkerTests(unittest.TestCase):
             return DiskHealth(disk)
 
         with self.config.with_suffix(".lock").open("a") as active, \
-                patch("disk_ha.health.fcntl.flock", side_effect=lock), \
-                patch("disk_ha.interface.SmartInspection.SmartInspection.inspect_verbose", side_effect=inspect), \
-                patch("disk_ha.interface.EmailNotification.EmailNotification.send_report") as email, \
+                patch("diskha.health.fcntl.flock", side_effect=lock), \
+                patch("diskha.interface.SmartInspection.SmartInspection.inspect_verbose", side_effect=inspect), \
+                patch("diskha.interface.EmailNotification.EmailNotification.send_report") as email, \
                 redirect_stdout(io.StringIO()):
             flock(active, fcntl.LOCK_EX)
             thread = Thread(target=worker, daemon=True)
@@ -196,14 +196,14 @@ class HealthWorkerTests(unittest.TestCase):
     def test_failed_atomic_replace_keeps_previous_result_and_cleans_candidate(self):
         self.worker(lambda disk: DiskHealth(disk))
         previous = self.result.read_bytes()
-        with patch("disk_ha.interface.HealthResult.Path.replace", side_effect=OSError("Disk full")), \
+        with patch("diskha.interface.HealthResult.Path.replace", side_effect=OSError("Disk full")), \
                 self.assertRaises(OSError):
             self.worker(lambda disk: DiskHealth(disk, ("FAIL",)))
         self.assertEqual(self.result.read_bytes(), previous)
         self.assertEqual(set(self.root.iterdir()), {self.config, self.result, self.config.with_suffix(".lock")})
 
     def test_missing_corrupt_and_invalid_shape_results_show_explicit_web_state(self):
-        with patch("disk_ha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)):
+        with patch("diskha.server.DrivePage.DDiskHA.HEALTH_RESULT", str(self.result)):
             self.assertIn(b"No health check recorded", render_page())
             for value in ("broken json", "[]", "{}", '{"checked_at": 2, "disks": [], "notification_error": null}'):
                 self.result.write_text(value)
@@ -222,7 +222,7 @@ class HealthWorkerTests(unittest.TestCase):
             installed.append(previous)
             return SimpleNamespace(returncode=0)
 
-        with patch("disk_ha.interface.CronSchedule.subprocess.run", side_effect=crontab):
+        with patch("diskha.interface.CronSchedule.subprocess.run", side_effect=crontab):
             HealthSchedule.apply(self.root, HealthConfiguration(self.config))
             self.values["expression"] = "*/15 * * * *"
             self.save_config()
@@ -235,12 +235,12 @@ class HealthWorkerTests(unittest.TestCase):
         self.assertEqual(len(installed), 3)
 
     def test_absent_crontab_and_read_failure(self):
-        with patch("disk_ha.interface.CronSchedule.subprocess.run",
+        with patch("diskha.interface.CronSchedule.subprocess.run",
                    side_effect=[SimpleNamespace(returncode=1, stdout="", stderr="no crontab for root"),
                                 SimpleNamespace(returncode=0)]) as command:
             HealthSchedule.apply(self.root, HealthConfiguration(self.config))
         self.assertEqual(command.call_count, 2)
-        with patch("disk_ha.interface.CronSchedule.subprocess.run",
+        with patch("diskha.interface.CronSchedule.subprocess.run",
                    return_value=SimpleNamespace(returncode=1, stdout="", stderr="Permission denied")) as command:
             with self.assertRaises(OSError):
                 HealthSchedule.apply(self.root, HealthConfiguration(self.config))
@@ -249,7 +249,7 @@ class HealthWorkerTests(unittest.TestCase):
     def test_schedule_reads_cron_instead_of_saved_expression(self):
         tab = "MAILTO=other@example.com\n15 2 * * * /other # unrelated\n"
         tab += "*/20 6-18 * * 1-5 /checker # disk-ha-health-check\n"
-        with patch("disk_ha.interface.CronSchedule.subprocess.run",
+        with patch("diskha.interface.CronSchedule.subprocess.run",
                    return_value=SimpleNamespace(returncode=0, stdout=tab, stderr="")):
             self.assertEqual(HealthSchedule.read(), {"enabled": True, "expression": "*/20 6-18 * * 1-5"})
         with patch.object(HealthSchedule, "_crontab", return_value=""):
@@ -273,7 +273,7 @@ class HealthWorkerTests(unittest.TestCase):
             tab = kwargs["input"]
             return SimpleNamespace(returncode=0)
 
-        with patch("disk_ha.interface.CronSchedule.subprocess.run", side_effect=crontab):
+        with patch("diskha.interface.CronSchedule.subprocess.run", side_effect=crontab):
             self.assertEqual(HealthSchedule.update(self.root, True, "*/15 * * * *"),
                              {"enabled": True, "expression": "*/15 * * * *"})
             self.assertTrue(tab.startswith(unrelated))

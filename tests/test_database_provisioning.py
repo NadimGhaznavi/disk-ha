@@ -9,9 +9,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from disk_ha.constants.DDiskHA import DDiskHA
-from disk_ha.interface.DatabaseEnvironment import DatabaseEnvironment
-from disk_ha.interface.DatabaseProvisioning import DatabaseProvisioning
+from diskha.constants.DDiskHA import DDiskHA
+from diskha.interface.DatabaseEnvironment import DatabaseEnvironment
+from diskha.interface.DatabaseProvisioning import DatabaseProvisioning
 
 
 class ProvisioningTests(unittest.TestCase):
@@ -24,12 +24,12 @@ class ProvisioningTests(unittest.TestCase):
         self.root_patch = patch.object(DatabaseProvisioning, "_require_root")
         self.root_patch.start()
         self.addCleanup(self.root_patch.stop)
-        password = patch("disk_ha.interface.DatabaseProvisioning.secrets.token_hex",
+        password = patch("diskha.interface.DatabaseProvisioning.secrets.token_hex",
                          return_value="0123456789abcdef" * 4)
         password.start()
         self.addCleanup(password.stop)
         self.options = []
-        client = patch("disk_ha.interface.DatabaseProvisioning.subprocess.run", side_effect=self.client)
+        client = patch("diskha.interface.DatabaseProvisioning.subprocess.run", side_effect=self.client)
         self.run = client.start()
         self.addCleanup(client.stop)
 
