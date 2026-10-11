@@ -12,14 +12,14 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from disk_ha.constants.DDiskHA import DDiskHA
-from disk_ha.interface.HealthSchedule import HealthSchedule
-from disk_ha.interface.MountInspection import MountInspection
-from disk_ha.interface.RsyncMirror import RsyncMirror
-from disk_ha.interface.SyncConfiguration import SyncConfiguration
-from disk_ha.interface.SyncSchedule import SyncSchedule
-from disk_ha.server.SyncPage import render_sync_output
-from disk_ha.sync import run
+from diskha.constants.DDiskHA import DDiskHA
+from diskha.interface.HealthSchedule import HealthSchedule
+from diskha.interface.MountInspection import MountInspection
+from diskha.interface.RsyncMirror import RsyncMirror
+from diskha.interface.SyncConfiguration import SyncConfiguration
+from diskha.interface.SyncSchedule import SyncSchedule
+from diskha.server.SyncPage import render_sync_output
+from diskha.sync import run
 
 
 class SyncTests(unittest.TestCase):
@@ -55,7 +55,7 @@ class SyncTests(unittest.TestCase):
             "maj:min": "8:1" if role == "source" else "8:2", "fsroot": "/"}]}))
 
     def test_exact_mount_identities_allow_sync(self):
-        with patch("disk_ha.interface.MountInspection.subprocess.run", side_effect=self.mount_command) as command:
+        with patch("diskha.interface.MountInspection.subprocess.run", side_effect=self.mount_command) as command:
             MountInspection().verify(SyncConfiguration(self.config))
         self.assertEqual(command.call_count, 2)
         self.assertEqual(command.call_args.kwargs["timeout"], 10)
@@ -84,7 +84,7 @@ class SyncTests(unittest.TestCase):
         self.result.write_text("previous output")
         for kind in ("missing", "wrong", "reversed", "bind", "same", "ancestor"):
             with self.subTest(kind=kind), \
-                    patch("disk_ha.interface.MountInspection.subprocess.run", side_effect=altered(kind)), \
+                    patch("diskha.interface.MountInspection.subprocess.run", side_effect=altered(kind)), \
                     patch.object(RsyncMirror, "run") as mirror:
                 self.assertEqual(self.worker(), 1)
                 mirror.assert_not_called()
@@ -179,7 +179,7 @@ class SyncTests(unittest.TestCase):
                 return SimpleNamespace(returncode=0, stdout=tab, stderr="")
             tab = kwargs["input"]
             return SimpleNamespace(returncode=0)
-        with patch("disk_ha.interface.CronSchedule.subprocess.run", side_effect=crontab):
+        with patch("diskha.interface.CronSchedule.subprocess.run", side_effect=crontab):
             SyncSchedule.apply(self.root, SyncConfiguration(self.config))
             self.assertTrue(tab.startswith(original))
             self.assertIn("0 */4 * * *", tab)
@@ -200,8 +200,8 @@ class SyncTests(unittest.TestCase):
     def test_timeout_kills_rsync_process_group_before_returning(self):
         process = Mock(pid=1234)
         process.wait.side_effect = [subprocess.TimeoutExpired("rsync", 1), 0]
-        with patch("disk_ha.interface.RsyncMirror.subprocess.Popen") as popen, \
-                patch("disk_ha.interface.RsyncMirror.os.killpg") as kill:
+        with patch("diskha.interface.RsyncMirror.subprocess.Popen") as popen, \
+                patch("diskha.interface.RsyncMirror.os.killpg") as kill:
             popen.return_value.__enter__.return_value = process
             with self.assertRaises(subprocess.TimeoutExpired):
                 RsyncMirror().run(SyncConfiguration(self.config), io.StringIO())

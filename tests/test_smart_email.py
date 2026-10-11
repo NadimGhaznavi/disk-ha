@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 import unittest
 
-from disk_ha.entity.Disk import Disk
-from disk_ha.entity.DiskHealth import DiskHealth
-from disk_ha.entity.DiskCheckReport import DiskCheckReport
-from disk_ha.presentation.SmartEmail import attributes, render
+from diskha.entity.Disk import Disk
+from diskha.entity.DiskHealth import DiskHealth
+from diskha.entity.DiskCheckReport import DiskCheckReport
+from diskha.presentation.SmartEmail import attributes, render
 
 
 class Links(HTMLParser):

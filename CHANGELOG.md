@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is in memory of the **Juratyrant** who walked on Earth 149 million years ago.
+
+### Changed
+
+- Make installed applications discoverable as `DiskHA` in CMDB using the
+  `diskha` package under `/opt/prod/diskha`. Upgrades retain existing
+  configuration, credentials, data, and worker locks through an alias to the
+  former installation directory.
+
 ## [1.2.0] - 2026-10-10 @ 20:43
+
+This release is to remember the **Glyptodon** who died out about 10,000 years ago. They lasted about 3.2 million years, well above the average run for a species.
 
 ### Added
 

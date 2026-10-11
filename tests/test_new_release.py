@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONSTANTS = "disk_ha/constants/DDiskHA.py"
+CONSTANTS = "diskha/constants/DDiskHA.py"
 
 
 class ReleaseTests(unittest.TestCase):

@@ -14,7 +14,8 @@ sudo scripts/uninstall.sh
 ```
 
 Installation deploys the application and readable CMDB metadata to
-`/opt/prod/disk-ha` and starts `disk-ha-web.service`.
+`/opt/prod/diskha` and starts `disk-ha-web.service`.
+Register **DiskHA** (case-sensitive) through CMDB's **Add Application**.
 Open `http://<server>:23300/` for the blank web interface.
 The service uses the `diskha` Linux account; installation also provisions the
 `diskha` MariaDB account and database. Upgrade and uninstall preserve accounts,
