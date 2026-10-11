@@ -10,6 +10,7 @@ from diskha.constants.DDiskHA import DDiskHA
 from diskha.server.DrivePage import render_page
 from diskha.interface.HealthControl import request_check, request_email_report, request_sync, update_schedule, update_sync_schedule
 from diskha.server.SyncPage import render_sync_output
+from diskha.interface.DriveControl import select_drives
 
 
 class WebHandler(BaseHTTPRequestHandler):
@@ -24,7 +25,8 @@ class WebHandler(BaseHTTPRequestHandler):
         self.serve()
 
     def do_POST(self) -> None:
-        if self.path not in ("/health/run", "/health/schedule", "/health/email-report", "/sync/schedule", "/sync/run"):
+        if self.path not in ("/health/run", "/health/schedule", "/health/email-report", "/sync/schedule", "/sync/run",
+                             "/drives/check", "/drives/save"):
             self.respond(404, b"Not found.\n", "text/plain; charset=utf-8")
             return
         # Browser requests must come from this page, including on private networks.
@@ -35,6 +37,9 @@ class WebHandler(BaseHTTPRequestHandler):
             return
         if self.path in ("/health/schedule", "/sync/schedule"):
             self.save_schedule()
+            return
+        if self.path in ("/drives/check", "/drives/save"):
+            self.select_directories()
             return
         if self.headers.get("Content-Length", "0") != "0":
             self.respond(400, b"Unexpected request body.\n", "text/plain; charset=utf-8")
@@ -67,6 +72,23 @@ class WebHandler(BaseHTTPRequestHandler):
         else:
             self.respond(202, b"Health check requested. Reload to view the completed result.\n",
                          "text/plain; charset=utf-8")
+
+    def select_directories(self) -> None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 16384 or self.headers.get("Content-Type") != "application/json":
+                raise ValueError("Provide directory settings as JSON, at most 16384 bytes.")
+            request = json.loads(self.rfile.read(length))
+            if not isinstance(request, dict) or set(request) != {"source", "target"}:
+                raise ValueError("Provide source and target directory names.")
+            result = select_drives(request["source"], request["target"], save=self.path == "/drives/save")
+        except (ValueError, UnicodeError) as error:
+            self.respond(400, (str(error) + "\n").encode(), "text/plain; charset=utf-8")
+        except (OSError, subprocess.SubprocessError):
+            self.respond(503, b"Cannot access drive settings. Check for an active worker and retry.\n",
+                         "text/plain; charset=utf-8")
+        else:
+            self.respond(200, json.dumps(result).encode(), "application/json; charset=utf-8")
 
     def save_schedule(self) -> None:
         try:

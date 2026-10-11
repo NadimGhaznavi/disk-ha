@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release remembers **Pikaia** who last walked Earth over 505 million years ago.
+
+### Added
+
+- GUI source and target directory selection with automatic filesystem and drive
+  detection, validation of two distinct local drives, and SMART monitoring of
+  the selected drives.
+
+### Changed
+
+- Mirror selected subdirectories with different names and recheck their saved
+  mount, UUID, and drive identities before each sync.
+- Display configured directories and backing filesystem capacity, usage, and
+  free space instead of fixed mount paths.
+- Logo background is now transparent.
+
 ## [1.4.0] - 2026-10-11 @ 05:53
 
 This release remembers the **Opabinia** who went extinct about 505 million years ago.

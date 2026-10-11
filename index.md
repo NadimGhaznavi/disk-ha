@@ -1,3 +1,7 @@
+---
+title: disk-ha
+---
+
 # disk-ha
 
 This project formalizes two existing scripts for disk health monitoring and
@@ -35,6 +39,9 @@ Synchronization runs from the primary to the recovery copy.
 - Check both disks regularly for failure or degradation and notify the operator
   when a problem is detected.
 - Synchronize the recovery disk on a schedule.
+- Select source and target directories, including differently named
+  subdirectories, on two distinct local drives. Detect their backing mounts,
+  filesystem UUIDs, and stable drive identities for mirroring and monitoring.
 - Continue scheduled synchronization when a disk health check raises an alert.
 - Verify that both expected disks are mounted before synchronization. A missing
   or incorrect mount must prevent that sync run, especially because rsync uses
@@ -57,8 +64,8 @@ NFS configuration, NFS failover, and automatic recovery are outside this
 project's scope.
 
 The [web interface]({{ site.baseurl }}{% link pages/web-interface.md %}) currently
-displays a title bar and a Drive Configuration table with capacity and usage
-in TB for both mounted disks on port `23300`.
+displays a title bar and Drive Configuration controls for source and target
+directories on port `23300`, with filesystem capacity, usage, and free space in TB.
 [Disk health]({{ site.baseurl }}{% link pages/disk-health.md %}) runs through a
 configured cron job and saves results in a flat JSON file displayed by the Web UI.
 Health Check Schedule reads and edits the installed cron schedule. The Disk Health
@@ -68,7 +75,7 @@ for a fresh, verbose SMART report of both disks.
 The initial schedule checks daily at 14:00 server time and retains the existing
 script's email settings. Installed settings are preserved on upgrade.
 [Data synchronization]({{ site.baseurl }}{% link pages/data-sync.md %}) mirrors
-Disk 1 to Disk 2 every four hours by default. Data Sync Schedule reads and edits
+the selected source directory to the target every four hours by default. Data Sync Schedule reads and edits
 its cron entry and links to the most recent verbose output.
 
 ## Development
