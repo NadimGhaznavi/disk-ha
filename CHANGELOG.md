@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-11 @ 04:03
+
 This release is in memory of the **Juratyrant** who walked on Earth 149 million years ago.
 
 ### Changed
