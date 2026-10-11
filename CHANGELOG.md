@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-11 @ 05:53
+
+This release remembers the **Opabinia** who went extinct about 505 million years ago.
+
+### Added
+
+- DiskHA logo in the top-left title bar on the main Web UI and sync-output page.
+
 ## [1.3.2] - 2026-10-11 @ 05:44
 
 This release is named for the **Nuralagus** who died out about 3 million years ago.
