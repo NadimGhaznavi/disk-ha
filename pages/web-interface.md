@@ -8,11 +8,21 @@ layout: single
 
 The web interface at `http://<server>:23300/` displays a dark teal title bar
 with the caption “Vigilent since October 2026” and a Drive Configuration table.
-The Role column labels Disk 1 as Source at `/exports/disk1` and Disk 2 as Target at
-`/exports/disk2`. Capacity and used space are shown in decimal TB
+Enter existing absolute server paths in **Source directory** and **Target directory**.
+Subdirectories may have different names, for example `/disk1/archive/incoming/movies`
+and `/disk2/inbox/media-center`. Click **Check directories** to inspect the detected
+mounts, filesystem UUIDs, stable drive IDs, and space readings. After reviewing the
+direction, click **Save directories**. Editing either field requires another check.
+Saving rechecks the directories, updates mirroring and SMART monitoring together,
+and retains the schedules and email settings. It changes the next scheduled sync;
+files absent from the source are deleted from the target.
+See [data synchronization]({{ site.baseurl }}{% link pages/data-sync.md %}) for supported drives and safeguards.
+The Role column labels Disk 1 as Source and Disk 2 as Target. Backing filesystem
+capacity, used space, and free space are shown in decimal TB
 (1 TB = 1,000,000,000,000 bytes), rounded to two decimal places.
-Reload the page to refresh the readings. Missing mounts display “Not mounted”;
-failed usage readings display “Unavailable”.
+Reload the page to refresh the readings. Missing mounts, changed identities,
+and failed usage readings display “Unavailable” with a reason.
+Space readings describe the backing filesystem, not the size of the selected directory.
 The Disk Health panel reads the latest saved check results and displays their
 timestamp in server local time (`YYYY-MM-DD HH:MM:SS`), each disk's status and
 details, and email delivery failures.
@@ -47,7 +57,8 @@ On a Linux host with Python 3.10 or newer, systemd with `LoadCredential` support
 cron with the `crontab` command, and a running local MariaDB server with the
 `mariadb` client, run from the checkout. Enabled monitoring also needs `smartctl`
 and `msmtp` with a configured credential file.
-Enabled synchronization also requires `rsync` and `findmnt`.
+Directory selection requires `findmnt`, `lsblk`, and `smartctl`.
+Enabled synchronization also requires `rsync`.
 Root must be able to connect to MariaDB through Unix socket authentication.
 Schedule controls and manual checks also require `sudo` and `visudo`.
 
@@ -60,8 +71,8 @@ sudo scripts/restart.sh
 Installation bundles the server and its page into `/opt/prod/diskha/bin/disk-ha-web`,
 deploys the Python package and readable CMDB metadata, and enables
 `disk-ha-web.service` at boot. The service runs under the persistent `diskha` account;
-serving this page requires no root privileges. The account needs directory
-access to both mount points to read filesystem usage; it does not read file contents.
+serving this page requires no root privileges. The root helper reads directory
+and filesystem metadata; the Web UI does not read file contents.
 
 Register **DiskHA** (case-sensitive) through CMDB's **Add Application**.
 Discovery reads `/opt/prod/diskha/diskha/constants/DDiskHA.py` for the
@@ -89,11 +100,12 @@ The root-owned `disk-ha-health.service` runs manual checks;
 `disk-ha-sync.service` runs manual syncs through the same guarded worker as cron. Validated rules in
 `/etc/sudoers.d/disk-ha-health` let `diskha` start these services and call the
 `disk-ha-schedule` helper to read or update only disk-ha's marked root cron entry.
-The helper validates settings, preserves unrelated jobs, and keeps the worker's
-configuration consistent with GUI updates. It also supplies the configured contact
+The helper validates settings, detects and saves selected directory identities,
+preserves unrelated jobs, and keeps the workers consistent with GUI updates.
+It also supplies the configured contact
 address to the page. The Web UI cannot read mail credentials.
 The Web UI is intended for a trusted network; users with page access can update
-schedules and request checks.
+schedules, select source and target directories, and request checks or syncs.
 
 Following the BMDynIP provisioning pattern, installation creates:
 

@@ -11,6 +11,7 @@ from diskha.activity.CheckDisks import CheckDisks
 from diskha.constants.DDiskHA import DDiskHA
 from diskha.interface.HealthConfiguration import HealthConfiguration
 from diskha.interface.HealthResult import HealthResult
+from diskha.interface.SyncConfiguration import SyncConfiguration
 
 
 def run(config: Path, result: Path, email_report: bool = False) -> int:
@@ -22,6 +23,11 @@ def run(config: Path, result: Path, email_report: bool = False) -> int:
             print("Health check skipped: another check is active.")
             return 0
         configuration = HealthConfiguration(config)
+        sync_path = config.parent / "sync.json"
+        if sync_path.exists():
+            selected = SyncConfiguration(sync_path)
+            if selected.disks is not None:
+                configuration.disks = selected.disks
         if not configuration.enabled and not email_report:
             print("Health check skipped: monitoring is disabled.")
             return 0

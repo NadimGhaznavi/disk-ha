@@ -41,7 +41,7 @@ class WebTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join(timeout=5)
 
-    @patch("diskha.server.DrivePage.read_usage", return_value=None)
+    @patch("diskha.server.DrivePage.read_drives", side_effect=OSError("not installed"))
     def test_page_and_head(self, usage):
         expected = render_page()
         with self.opener.open(self.url + "/?test=1", timeout=2) as response:
@@ -71,6 +71,36 @@ class WebTests(unittest.TestCase):
         with self.opener.open(Request(self.url + "/static/diskha.png", method="HEAD"), timeout=2) as response:
             self.assertEqual(int(response.headers["Content-Length"]), len(expected))
             self.assertEqual(response.read(), b"")
+
+    @patch("diskha.server.__main__.select_drives", return_value={"source": {}, "target": {}})
+    def test_directory_selection_requires_same_origin_and_only_directory_fields(self, select):
+        body = b'{"source":"/disk1/archive/incoming/movies","target":"/disk2/inbox/media-center"}'
+        for action in ("check", "save"):
+            request = Request(self.url + "/drives/" + action, data=body,
+                              headers={"Origin": self.url, "Content-Type": "application/json"})
+            with self.opener.open(request, timeout=2) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.load(response), {"source": {}, "target": {}})
+            select.assert_called_with("/disk1/archive/incoming/movies", "/disk2/inbox/media-center", save=action == "save")
+        select.reset_mock()
+        for data, headers, code in ((body, {"Content-Type": "application/json"}, 403),
+                                    (body, {"Origin": "http://other.example", "Content-Type": "application/json"}, 403),
+                                    (b'{}', {"Origin": self.url, "Content-Type": "application/json"}, 400),
+                                    (b'[]', {"Origin": self.url, "Content-Type": "application/json"}, 400),
+                                    (b'x' * 16385, {"Origin": self.url, "Content-Type": "application/json"}, 400),
+                                    (body, {"Origin": self.url, "Content-Type": "text/plain"}, 400)):
+            with self.assertRaises(HTTPError) as raised:
+                self.opener.open(Request(self.url + "/drives/save", data=data, headers=headers), timeout=2)
+            self.assertEqual(raised.exception.code, code)
+            raised.exception.close()
+        select.assert_not_called()
+        for error, status in ((ValueError("Same physical drive"), 400), (OSError("worker active"), 503)):
+            select.side_effect = error
+            with self.assertRaises(HTTPError) as raised:
+                self.opener.open(Request(self.url + "/drives/save", data=body,
+                                        headers={"Origin": self.url, "Content-Type": "application/json"}), timeout=2)
+            self.assertEqual(raised.exception.code, status)
+            raised.exception.close()
 
     @patch("diskha.server.__main__.update_sync_schedule",
            return_value={"enabled": True, "expression": "0 */4 * * *"})
@@ -239,8 +269,7 @@ class WebTests(unittest.TestCase):
                 with self.opener.open(f"http://127.0.0.1:{port}/", timeout=2) as response:
                     page = response.read()
                     self.assertIn(b"Drive Configuration", page)
-                    self.assertIn(b"Disk 1", page)
-                    self.assertIn(b"Disk 2", page)
+                    self.assertIn(b"Drive settings unavailable", page)
                     self.assertNotIn(b"{{disk", page)
                     self.assertIn(b'src="/static/diskha.png"', page)
                 with self.opener.open(f"http://127.0.0.1:{port}/static/diskha.png", timeout=2) as response:

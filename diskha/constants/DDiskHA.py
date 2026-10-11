@@ -38,6 +38,7 @@ class DDiskHA:
     VISUDO: Final[str] = "/usr/sbin/visudo"
     RSYNC: Final[str] = "/usr/bin/rsync"
     FINDMNT: Final[str] = "/usr/bin/findmnt"
+    LSBLK: Final[str] = "/usr/bin/lsblk"
     SYNC_CONFIG: Final[str] = "/opt/prod/diskha/conf/sync.json"
     SYNC_RESULT: Final[str] = "/opt/prod/diskha/data/sync-output.log"
     SYNC_SERVICE_FILE: Final[str] = "/etc/systemd/system/disk-ha-sync.service"

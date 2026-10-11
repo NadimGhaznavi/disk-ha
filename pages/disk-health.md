@@ -41,7 +41,11 @@ Change **Enabled** and **Cron Schedule** in Health Check Schedule and click **Up
 The field reads the actual root cron entry on every page load. An absent entry
 shows disabled monitoring and an empty expression. Updates preserve unrelated jobs
 and update `health.json`; a cron write failure restores the previous settings.
-To change disk paths, timeouts, or the `mail` object (`recipient`, `sender`,
+After **Save directories** in Drive Configuration, monitoring uses the detected
+whole-drive identities saved in `sync.json`. The `disks` entries in `health.json`
+remain the fallback for existing mount-only configurations. Monitoring does not
+require the selected directories to remain mounted.
+To change timeouts or the `mail` object (`recipient`, `sender`,
 `config_path`, and `timeout`), edit `health.json`, then run `sudo scripts/upgrade.sh`.
 Expressions support numbers, wildcards, ranges, lists, and steps; cron uses the
 server's configured timezone. Upgrades retain the live cron schedule and reflect

@@ -10,9 +10,17 @@ from diskha.constants.DDiskHA import DDiskHA
 from diskha.interface.HealthConfiguration import HealthConfiguration, validate_expression
 from diskha.interface.HealthSchedule import HealthSchedule
 from diskha.interface.SyncSchedule import SyncSchedule
+from diskha.interface.DriveConfiguration import DriveConfiguration
 
 
 def dispatch(request: dict) -> dict:
+    if request == {"action": "read-drives"}:
+        return DriveConfiguration.read(Path(DDiskHA.INSTALL_DIR))
+    if (isinstance(request, dict) and set(request) == {"action", "source", "target"}
+            and request["action"] in ("check-drives", "save-drives")):
+        if request["action"] == "check-drives":
+            return DriveConfiguration.check(request["source"], request["target"])
+        return DriveConfiguration.save(Path(DDiskHA.INSTALL_DIR), request["source"], request["target"])
     if request == {"action": "read"}:
         return HealthSchedule.read()
     if request == {"action": "read-sync"}:
@@ -41,8 +49,8 @@ def main() -> int:
         return 1
     os.umask(0o077)
     try:
-        source = sys.stdin.read(1025)
-        if len(source) > 1024:
+        source = sys.stdin.read(16385)
+        if len(source) > 16384:
             raise ValueError("Schedule request is too large.")
         result = dispatch(json.loads(source))
     except ValueError as error:
