@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-11 @ 04:23
+
+The **Kioea** release is in memory of the species which became extinct in 1859.
+
+### Fixed
+
+- Restore the legacy home alias on reinstall when the `diskha` account remains
+  but its installation directories have been removed.
+- Report the exact incompatible service-account settings when installation
+  encounters an existing `diskha` account.
+
 ## [1.3.0] - 2026-10-11 @ 04:03
 
 This release is in memory of the **Juratyrant** who walked on Earth 149 million years ago.
