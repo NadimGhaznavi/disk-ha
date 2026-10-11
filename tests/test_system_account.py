@@ -1,12 +1,14 @@
 """Verify account creation and reuse without changing host accounts."""
 
 import os
+from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from disk_ha.constants.DDiskHA import DDiskHA
-from disk_ha.interface.SystemAccount import SystemAccount
+from diskha.constants.DDiskHA import DDiskHA
+from diskha.interface.SystemAccount import SystemAccount
 
 
 class AccountTests(unittest.TestCase):
@@ -19,7 +21,7 @@ class AccountTests(unittest.TestCase):
         with patch("os.geteuid", return_value=0), \
                 patch("grp.getgrnam", side_effect=[KeyError(), self.group]), \
                 patch("pwd.getpwnam", side_effect=[KeyError(), self.account]), \
-                patch("disk_ha.interface.SystemAccount.subprocess.run") as run:
+                patch("diskha.interface.SystemAccount.subprocess.run") as run:
             self.assertEqual(SystemAccount.provision(), self.account)
         self.assertEqual(run.call_args_list[0].args[0], [DDiskHA.GROUPADD, "--system", "diskha"])
         command = run.call_args_list[1].args[0]
@@ -33,7 +35,7 @@ class AccountTests(unittest.TestCase):
         with patch("os.geteuid", return_value=0), \
                 patch("grp.getgrnam", return_value=self.group), \
                 patch("pwd.getpwnam", return_value=self.account), \
-                patch("disk_ha.interface.SystemAccount.subprocess.run") as run:
+                patch("diskha.interface.SystemAccount.subprocess.run") as run:
             self.assertEqual(SystemAccount.provision(), self.account)
         run.assert_not_called()
 
@@ -46,10 +48,28 @@ class AccountTests(unittest.TestCase):
                 with patch("os.geteuid", return_value=0), \
                         patch("grp.getgrnam", return_value=self.group), \
                         patch("pwd.getpwnam", return_value=account), \
-                        patch("disk_ha.interface.SystemAccount.subprocess.run") as run:
+                        patch("diskha.interface.SystemAccount.subprocess.run") as run:
                     with self.assertRaises(ValueError):
                         SystemAccount.provision()
                     run.assert_not_called()
+
+    def test_legacy_account_home_is_reused_only_when_installation_alias_matches(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            legacy = Path(temporary) / "disk-ha"
+            root = Path(temporary) / "diskha"
+            legacy.mkdir()
+            self.account.pw_dir = str(legacy)
+            with patch.object(DDiskHA, "INSTALL_DIR", str(root)), \
+                    patch.object(DDiskHA, "LEGACY_INSTALL_DIR", str(legacy)), \
+                    patch("os.geteuid", return_value=0), \
+                    patch("grp.getgrnam", return_value=self.group), \
+                    patch("pwd.getpwnam", return_value=self.account), \
+                    patch("diskha.interface.SystemAccount.subprocess.run") as run:
+                with self.assertRaises(ValueError):
+                    SystemAccount.provision()
+                root.symlink_to(legacy, target_is_directory=True)
+                self.assertEqual(SystemAccount.provision(), self.account)
+                run.assert_not_called()
 
     def test_nonroot_provisioning_is_rejected(self):
         with patch("os.geteuid", return_value=1000), self.assertRaises(PermissionError):

@@ -16,7 +16,7 @@ disable synchronization.
 
 ## Configuration and safeguards
 
-Installation creates `/opt/prod/disk-ha/conf/sync.json`, owned by root with mode
+Installation creates `/opt/prod/diskha/conf/sync.json`, owned by root with mode
 `0600`. Its source and target mount paths and UUIDs match the disk layout in the
 project scope. The finite `timeout` bounds a complete rsync run in seconds; the
 initial value is 86400 (24 hours). Adjust these settings in the installed file.

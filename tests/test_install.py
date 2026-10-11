@@ -3,6 +3,7 @@
 from contextlib import redirect_stdout
 import importlib.util
 import io
+import ast
 import json
 import os
 from pathlib import Path
@@ -25,6 +26,10 @@ class InstallationTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="disk-ha-install-test-")
         self.addCleanup(temporary.cleanup)
         self.target = Path(temporary.name) / "prod"
+        self.legacy = Path(temporary.name) / "disk-ha"
+        legacy_setting = patch.object(installer.DDiskHA, "LEGACY_INSTALL_DIR", str(self.legacy))
+        legacy_setting.start()
+        self.addCleanup(legacy_setting.stop)
         scheduling = patch.object(installer.HealthSchedule, "apply")
         self.scheduling = scheduling.start()
         self.addCleanup(scheduling.stop)
@@ -86,10 +91,81 @@ class InstallationTests(unittest.TestCase):
         output.__enter__()
         self.addCleanup(output.__exit__, None, None, None)
 
+    def test_cmdb_discovery_convention_matches_installed_metadata(self):
+        name = "DiskHA"
+        # The unpatched declaration must use CMDB's lowercase application name.
+        source = (ROOT / "diskha/constants/DDiskHA.py").read_text()
+        declarations = {node.target.id: ast.literal_eval(node.value)
+                        for node in ast.walk(ast.parse(source))
+                        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)}
+        self.assertEqual(declarations["INSTALL_DIR"], "/opt/prod/" + name.lower())
+        installer.install()
+        constants = self.target / name.lower() / "constants" / ("D" + name + ".py")
+        self.assertEqual(constants.read_text(), source)
+        self.assertTrue(declarations["VERSION"])
+
+    def test_legacy_upgrade_preserves_state_and_locks_through_canonical_alias(self):
+        installer.install()
+        self.target.rename(self.legacy)
+        old_package = self.legacy / "disk_ha"
+        (self.legacy / "diskha").rename(old_package)
+        credentials = self.legacy / "conf/database.env"
+        credentials.write_text("saved credentials")
+        credentials.chmod(0o600)
+        state = self.legacy / "data/health.json"
+        state.write_text("saved result")
+        lock = self.legacy / "conf/health.lock"
+        lock.touch()
+        identity = lock.stat().st_ino
+        self.reading.side_effect = None
+        self.reading.return_value = {"enabled": True, "expression": "*/20 * * * *"}
+        self.sync_reading.side_effect = None
+        self.sync_reading.return_value = {"enabled": False, "expression": ""}
+        installer.install()
+        self.assertTrue(self.target.is_symlink())
+        self.assertTrue(self.target.samefile(self.legacy))
+        self.assertEqual((self.target / "conf/health.lock").stat().st_ino, identity)
+        self.assertEqual(credentials.read_text(), "saved credentials")
+        self.assertEqual(credentials.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(state.read_text(), "saved result")
+        self.assertFalse(old_package.exists())
+        self.assertTrue((self.target / "diskha/constants/DDiskHA.py").is_file())
+        self.assertEqual(json.loads((self.target / "conf/health.json").read_text())["expression"],
+                         "*/20 * * * *")
+        self.assertFalse(json.loads((self.target / "conf/sync.json").read_text())["enabled"])
+        self.assertIn(f"ExecStart={self.target}/bin/disk-ha-web", Path(installer.DDiskHA.WEB_SERVICE_FILE).read_text())
+        installer.install()
+        installer.uninstall()
+        self.assertFalse((self.target / "diskha").exists())
+        self.assertEqual(credentials.read_text(), "saved credentials")
+        self.assertEqual(state.read_text(), "saved result")
+
+    def test_conflicting_installation_roots_fail_before_overwriting_state(self):
+        self.target.mkdir()
+        self.legacy.mkdir()
+        saved = self.legacy / "saved"
+        saved.write_text("existing state")
+        with self.assertRaisesRegex(ValueError, "Both installation paths"):
+            installer.install()
+        self.assertEqual(saved.read_text(), "existing state")
+        self.assertFalse((self.target / "bin").exists())
+        self.control.assert_not_called()
+
+    def test_uninstall_legacy_installation_without_prior_upgrade(self):
+        installer.install()
+        self.target.rename(self.legacy)
+        (self.legacy / "diskha").rename(self.legacy / "disk_ha")
+        installer.uninstall()
+        self.assertTrue(self.target.samefile(self.legacy))
+        self.assertFalse((self.legacy / "disk_ha").exists())
+        self.assertFalse((self.legacy / "bin/disk-ha-web").exists())
+        self.assertTrue((self.legacy / "conf/health.json").is_file())
+        self.scheduling.assert_any_call(self.target, None)
+
     def test_install_upgrade_and_uninstall_preserve_local_files(self):
         installer.install()
-        constants = self.target / "disk_ha/constants/DDiskHA.py"
-        expected = (ROOT / "disk_ha/constants/DDiskHA.py").read_bytes()
+        constants = self.target / "diskha/constants/DDiskHA.py"
+        expected = (ROOT / "diskha/constants/DDiskHA.py").read_bytes()
         self.assertEqual(constants.read_bytes(), expected)
         for directory in (self.target, self.target / "bin", constants.parent.parent, constants.parent):
             self.assertEqual(directory.stat().st_mode & 0o777, 0o755)
@@ -97,8 +173,8 @@ class InstallationTests(unittest.TestCase):
         executable = self.target / "bin/disk-ha-web"
         self.assertEqual(executable.stat().st_mode & 0o777, 0o755)
         with zipfile.ZipFile(executable) as archive:
-            self.assertEqual(archive.read("disk_ha/server/static/index.html"),
-                             (ROOT / "disk_ha/server/static/index.html").read_bytes())
+            self.assertEqual(archive.read("diskha/server/static/index.html"),
+                             (ROOT / "diskha/server/static/index.html").read_bytes())
         service = Path(installer.DDiskHA.WEB_SERVICE_FILE)
         self.assertEqual(service.stat().st_mode & 0o777, 0o644)
         self.assertIn(f"ExecStart={executable} --host 0.0.0.0 --port 23300", service.read_text())
@@ -135,7 +211,7 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(checker.stat().st_mode & 0o777, 0o755)
         result = subprocess.run(
             ["/usr/bin/python3", "-B", "-c",
-             "from disk_ha.constants.DDiskHA import DDiskHA; print(DDiskHA.VERSION)"],
+             "from diskha.constants.DDiskHA import DDiskHA; print(DDiskHA.VERSION)"],
             cwd=self.target, text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), installer.DDiskHA.VERSION)
@@ -153,7 +229,7 @@ class InstallationTests(unittest.TestCase):
         self.assertFalse(legacy_constants.exists())
         installer.uninstall()
         installer.uninstall()
-        self.assertFalse((self.target / "disk_ha").exists())
+        self.assertFalse((self.target / "diskha").exists())
         self.assertFalse(executable.exists())
         self.assertFalse(checker.exists())
         self.assertFalse((self.target / "bin/disk-ha-sync").exists())
@@ -172,7 +248,7 @@ class InstallationTests(unittest.TestCase):
 
     def test_staging_failure_keeps_installed_metadata(self):
         installer.install()
-        constants = self.target / "disk_ha/constants/DDiskHA.py"
+        constants = self.target / "diskha/constants/DDiskHA.py"
         original = constants.read_bytes()
         with patch.object(installer.shutil, "copytree", side_effect=OSError("Staging failed")):
             with self.assertRaisesRegex(OSError, "Staging failed"):
@@ -234,7 +310,7 @@ class InstallationTests(unittest.TestCase):
         # Invoke the runner function directly to avoid requiring root in the test.
         result = subprocess.run(
             ["/usr/bin/python3", "-B", "-c",
-             "from pathlib import Path; from disk_ha.health import run; "
+             "from pathlib import Path; from diskha.health import run; "
              "raise SystemExit(run(Path('conf/health.json'), Path('data/health.json')))"],
             cwd=self.target, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -266,7 +342,7 @@ class InstallationTests(unittest.TestCase):
         worker = self.target / "bin/disk-ha-sync"
         self.assertEqual(worker.stat().st_mode & 0o777, 0o755)
         for name in ("SyncConfiguration", "MountInspection", "RsyncMirror", "SyncSchedule", "CronSchedule"):
-            self.assertTrue((self.target / f"disk_ha/interface/{name}.py").is_file())
+            self.assertTrue((self.target / f"diskha/interface/{name}.py").is_file())
         result = subprocess.run([str(worker), "--help"], capture_output=True, text=True, timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--result", result.stdout)

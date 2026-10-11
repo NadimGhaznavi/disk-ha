@@ -17,13 +17,13 @@ import zipapp
 REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 
-from disk_ha.constants.DDiskHA import DDiskHA
-from disk_ha.interface.DatabaseProvisioning import DatabaseProvisioning
-from disk_ha.interface.SystemAccount import SystemAccount
-from disk_ha.interface.HealthConfiguration import HealthConfiguration
-from disk_ha.interface.HealthSchedule import HealthSchedule
-from disk_ha.interface.SyncConfiguration import SyncConfiguration
-from disk_ha.interface.SyncSchedule import SyncSchedule
+from diskha.constants.DDiskHA import DDiskHA
+from diskha.interface.DatabaseProvisioning import DatabaseProvisioning
+from diskha.interface.SystemAccount import SystemAccount
+from diskha.interface.HealthConfiguration import HealthConfiguration
+from diskha.interface.HealthSchedule import HealthSchedule
+from diskha.interface.SyncConfiguration import SyncConfiguration
+from diskha.interface.SyncSchedule import SyncSchedule
 
 
 def systemctl(*arguments: str) -> None:
@@ -60,14 +60,30 @@ def restart() -> None:
     print(f"disk-ha Web UI: active on port {DDiskHA.WEB_PORT} (listening on {DDiskHA.WEB_HOST})")
 
 
+def installation_root() -> Path:
+    """Use the CMDB path while retaining legacy state and lock identities."""
+    root = Path(DDiskHA.INSTALL_DIR)
+    legacy = Path(DDiskHA.LEGACY_INSTALL_DIR)
+    if legacy.exists():
+        if not legacy.is_dir():
+            raise ValueError("Legacy installation path must be a directory.")
+        if root.exists() or root.is_symlink():
+            if not root.exists() or not root.samefile(legacy):
+                raise ValueError("Both installation paths exist and differ; reconcile them before upgrading.")
+        else:
+            # Keep saved state and active worker locks at the same filesystem location.
+            root.symlink_to(legacy, target_is_directory=True)
+    return root
+
+
 def install() -> None:
     for executable in ("/usr/bin/python3", DDiskHA.SYSTEMCTL, DDiskHA.MARIADB,
                        DDiskHA.USERADD, DDiskHA.GROUPADD, DDiskHA.NOLOGIN, DDiskHA.CRONTAB,
                        DDiskHA.SUDO, DDiskHA.VISUDO):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
+    root = installation_root()
     account = SystemAccount.provision()
-    root = Path(DDiskHA.INSTALL_DIR)
     upgrading = (root / "bin/disk-ha-check").exists()
     sync_upgrading = (root / "bin/disk-ha-sync").exists()
     root.mkdir(parents=True, exist_ok=True)
@@ -117,34 +133,34 @@ def install() -> None:
     with tempfile.TemporaryDirectory(prefix=".disk-ha-install-", dir=root) as temporary:
         staging = Path(temporary)
         source_root = staging / "source"
-        staged = source_root / "disk_ha"
-        shutil.copytree(REPOSITORY / "disk_ha", staged,
+        staged = source_root / "diskha"
+        shutil.copytree(REPOSITORY / "diskha", staged,
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         (source_root / "__main__.py").write_text(
-            "from disk_ha.server.__main__ import main\nmain()\n")
+            "from diskha.server.__main__ import main\nmain()\n")
         archive = staging / "disk-ha-web"
         zipapp.create_archive(source_root, target=archive, interpreter="/usr/bin/python3")
         archive.chmod(0o755)
         archive.replace(root / "bin/disk-ha-web")
         (source_root / "__main__.py").write_text(
-            "from disk_ha.health import main\nraise SystemExit(main())\n")
+            "from diskha.health import main\nraise SystemExit(main())\n")
         checker = staging / "disk-ha-check"
         zipapp.create_archive(source_root, target=checker, interpreter="/usr/bin/python3")
         checker.chmod(0o755)
         checker.replace(root / "bin/disk-ha-check")
         (source_root / "__main__.py").write_text(
-            "from disk_ha.schedule import main\nraise SystemExit(main())\n")
+            "from diskha.schedule import main\nraise SystemExit(main())\n")
         scheduler = staging / "disk-ha-schedule"
         zipapp.create_archive(source_root, target=scheduler, interpreter="/usr/bin/python3")
         scheduler.chmod(0o755)
         scheduler.replace(root / "bin/disk-ha-schedule")
         (source_root / "__main__.py").write_text(
-            "from disk_ha.sync import main\nraise SystemExit(main())\n")
+            "from diskha.sync import main\nraise SystemExit(main())\n")
         sync_worker = staging / "disk-ha-sync"
         zipapp.create_archive(source_root, target=sync_worker, interpreter="/usr/bin/python3")
         sync_worker.chmod(0o755)
         sync_worker.replace(root / "bin/disk-ha-sync")
-        package = root / "disk_ha"
+        package = root / "diskha"
         package.mkdir(exist_ok=True)
         package.chmod(0o755)
         for source in sorted(staged.rglob("*")):
@@ -157,6 +173,9 @@ def install() -> None:
                 source.replace(destination)
         # Remove the former metadata module after its replacement is deployed.
         (package / "constants/DDISKHA.py").unlink(missing_ok=True)
+    legacy_package = root / "disk_ha"
+    if legacy_package.exists():
+        shutil.rmtree(legacy_package)
     service = Path(DDiskHA.WEB_SERVICE_FILE)
     health_service = Path(DDiskHA.HEALTH_SERVICE_FILE)
     health_service.write_text(
@@ -234,7 +253,7 @@ def install() -> None:
 
 
 def uninstall() -> None:
-    root = Path(DDiskHA.INSTALL_DIR)
+    root = installation_root()
     configuration = root / "conf/health.json"
     if configuration.parent.exists():
         with configuration.with_suffix(".lock").open("a") as stream:
@@ -262,9 +281,10 @@ def uninstall() -> None:
     (root / "bin/disk-ha-check").unlink(missing_ok=True)
     (root / "bin/disk-ha-schedule").unlink(missing_ok=True)
     (root / "bin/disk-ha-sync").unlink(missing_ok=True)
-    package = Path(DDiskHA.INSTALL_DIR) / "disk_ha"
-    if package.exists():
-        shutil.rmtree(package)
+    for name in ("diskha", "disk_ha"):
+        package = root / name
+        if package.exists():
+            shutil.rmtree(package)
     print("Removed disk-ha's Web UI service, executable, Python package, and CMDB metadata; "
           "accounts, database, configuration, credentials, and data preserved.")
 

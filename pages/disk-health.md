@@ -31,8 +31,8 @@ column. Email delivery failure is recorded separately from disk health.
 
 ## Scheduling and results
 
-Installation deploys `/opt/prod/disk-ha/bin/disk-ha-check` and creates a root-owned
-`/opt/prod/disk-ha/conf/health.json` (mode `0600`) if it does not exist. Monitoring
+Installation deploys `/opt/prod/diskha/bin/disk-ha-check` and creates a root-owned
+`/opt/prod/diskha/conf/health.json` (mode `0600`) if it does not exist. Monitoring
 is enabled daily at 14:00 server time (`0 14 * * *`), using the existing script's
 two stable disk paths and email sender and recipient. The existing
 `/root/.msmtprc` supplies credentials; installation does not create or copy it.
@@ -53,7 +53,7 @@ Root is required to inspect the block devices and access the configured msmtp
 credential file. The worker rechecks `enabled` and skips overlapping runs using
 a file lock. Schedule edits during a check report an error; retry after it completes.
 
-The latest completed check replaces `/opt/prod/disk-ha/data/health.json`
+The latest completed check replaces `/opt/prod/diskha/data/health.json`
 atomically. It stores a server-local timestamp with a timezone offset and
 second precision, both disks' SMART results and raw output,
 and any notification failure. The result belongs to root and the `diskha` group

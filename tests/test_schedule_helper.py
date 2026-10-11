@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from disk_ha import schedule
-from disk_ha.constants.DDiskHA import DDiskHA
+from diskha import schedule
+from diskha.constants.DDiskHA import DDiskHA
 
 
 class ScheduleHelperTests(unittest.TestCase):

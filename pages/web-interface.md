@@ -57,17 +57,29 @@ sudo scripts/upgrade.sh
 sudo scripts/restart.sh
 ```
 
-Installation bundles the server and its page into `/opt/prod/disk-ha/bin/disk-ha-web`,
+Installation bundles the server and its page into `/opt/prod/diskha/bin/disk-ha-web`,
 deploys the Python package and readable CMDB metadata, and enables
 `disk-ha-web.service` at boot. The service runs under the persistent `diskha` account;
 serving this page requires no root privileges. The account needs directory
 access to both mount points to read filesystem usage; it does not read file contents.
 
+Register **DiskHA** (case-sensitive) through CMDB's **Add Application**.
+Discovery reads `/opt/prod/diskha/diskha/constants/DDiskHA.py` for the
+installed version, subtype, supplier, and release codename.
+Development checkouts are not discovery targets.
+
+When upgrading an installation at `/opt/prod/disk-ha`, the installer creates
+`/opt/prod/diskha` as a symlink to that directory. Configuration, credentials,
+data, worker locks, and the account's existing home stay in place; services and
+cron commands use the new path. If both paths exist and refer to different
+directories, installation fails before changing saved state. Reconcile them
+before retrying.
+
 ## Accounts and database
 
 Installation creates the `diskha` Linux system account and group with a non-login
 shell and no separate home directory. Application code stays root-owned;
-`/opt/prod/disk-ha/data/` belongs to root and the `diskha` group with mode `0750`.
+`/opt/prod/diskha/data/` belongs to root and the `diskha` group with mode `0750`.
 Root runs scheduled health checks and writes results with mode `0640`;
 the Web UI account has read access.
 The root-owned `disk-ha-health.service` runs manual checks;
@@ -85,7 +97,7 @@ Following the BMDynIP provisioning pattern, installation creates:
 
 - MariaDB database `diskha`, using `utf8mb4` with `utf8mb4_bin` collation.
 - Local MariaDB account `'diskha'@'localhost'` with a generated password.
-- Root-owned credentials at `/opt/prod/disk-ha/conf/database.env`, mode `0600`,
+- Root-owned credentials at `/opt/prod/diskha/conf/database.env`, mode `0600`,
   inside the root-only `conf/` directory.
 
 The database account receives `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`,
@@ -113,12 +125,12 @@ journalctl -u disk-ha-web.service
 
 Remove the service and application with `sudo scripts/uninstall.sh`.
 Upgrade and removal preserve configuration, credentials, and saved data in
-`/opt/prod/disk-ha/conf/` and `/opt/prod/disk-ha/data/`.
+`/opt/prod/diskha/conf/` and `/opt/prod/diskha/data/`.
 
 ## Run from a checkout
 
 ```sh
-python3 -m disk_ha.server
+python3 -m diskha.server
 ```
 
 Use `--host 127.0.0.1` to listen locally or `--port <port>` to override the port.
