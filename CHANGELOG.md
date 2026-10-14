@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-This release celebrates the Cree language: This is the **niyānan** (5) release.
+This release celebrates the Cree language: This is the **nikotwāsik** (6) release.
 
 ### Fixed
 
