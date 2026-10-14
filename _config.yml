@@ -20,19 +20,17 @@ minimal_mistakes_skin: "dark"
 #minimal_mistakes_skin: "air"
 
 # Site Settings
-mycount:
-  endpoint: "https://count.osoyalce.com/count"
-  site: "diskha"
-
-
 # Site Settings
+mycount:
+   endpoint: "https://count.osoyalce.com/count"
+   site: "diskha"
 locale: "en-US"
 rtl: # true, false (default) # turns direction of the page into right to left for RTL languages
-title: "disk-ha"
+title: "DiskHA"
 title_separator: "-"
-subtitle: "Bear & Moose"
-name: "disk-ha"
-description: "Disk Health, Alerting, and Replication Service"
+subtitle: # site tagline that appears below site title in masthead
+name: "Scheduled Disk Mirroring"
+description: "A small app to setup and run scheduled disk mirroring for two disks."
 url: "https://diskha.osoyalce.com" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl: "" # the subpath of your site, e.g. "/blog"
 repository: NadimGhaznavi/disk-ha # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
@@ -135,6 +133,8 @@ author:
     - label: "My Website"
       icon: "fas fa-fw fa-link"
       url: "https://www.osoyalce.com/"
+footer:
+  since: "2026"
 
 # Site Footer
 footer:
