@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-14 @ 04:10
+
 This release celebrates the Cree language: This is the **tēpakohp** (7) release.
 
 ### Fixed
