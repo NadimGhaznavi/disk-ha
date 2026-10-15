@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **pēyakosāp** (11) release.
+
+### Added
+
+- Architecture diagram.
+- Additions website content.
+
 ## [2.2.2] - 2026-10-15 @ 04:53
 
 This release celebrates the Cree language. This is the **mitātaht** (10) release.

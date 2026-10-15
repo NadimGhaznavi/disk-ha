@@ -2,6 +2,8 @@
 title: Scheduled Disk Replication with Gmail Alerts
 ---
 
+![Architecture](/pages/images/diskha-architecture.png)
+
 ## Table of Contents
 {:.no_toc}
 
@@ -43,7 +45,22 @@ cd disk-ha
 sudo ./scripts/install.sh
 ```
 
-The **DiskHA** software installs into `/opt/prod/diskha`.
+- The **DiskHA** software installs into `/opt/prod/diskha`.
+
+### DiskHA Linux Services
+
+The **DiskHA** software creates four *systemd service units*:
+
+Service | Purpose | Runs as
+--- | --- | ---
+disk-ha-web | Persistent web interface | diskha
+disk-ha-health | Manual disk health check | root
+disk-ha-email-report | Requested verbose health email | root
+disk-ha-sync | Manual disk synchronization | root
+
+Only the web service runs continuously. The other three are one-shot jobs started from the UI. Scheduled health checks and synchronization run through root’s cron.
+
+There are four service units, but only one persistent application server.
 
 ---
 
@@ -97,6 +114,7 @@ This section shows the latest disk health check results and includes a *Run Now*
 ![Email Notification](/pages/images/email-notification.png)
 
 This section shows the configured Gmail address and also includes an *Email Health Check* button. This can be used to test your email notification configuration.
+
 
 ---
 
