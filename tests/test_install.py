@@ -196,7 +196,10 @@ class InstallationTests(unittest.TestCase):
                              (ROOT / "diskha/server/static/index.html").read_bytes())
         service = Path(installer.DDiskHA.WEB_SERVICE_FILE)
         self.assertEqual(service.stat().st_mode & 0o777, 0o644)
-        self.assertIn(f"ExecStart={executable} --host 0.0.0.0 --port 23300", service.read_text())
+        self.assertIn(f"ExecStart={executable} --config ${{CREDENTIALS_DIRECTORY}}/web-interface.cfg",
+                      service.read_text())
+        self.assertIn(f"LoadCredential=web-interface.cfg:{self.target}/conf/web-interface.cfg", service.read_text())
+        self.assertNotIn("--port", service.read_text())
         self.assertIn("User=diskha\nGroup=diskha", service.read_text())
         self.assertIn(f"LoadCredential=database.env:{installer.DDiskHA.DATABASE_ENV}", service.read_text())
         self.assertNotIn("LoadCredential=health.json", service.read_text())
@@ -264,6 +267,33 @@ class InstallationTests(unittest.TestCase):
         for path, content in preserved.items():
             self.assertEqual(path.read_bytes(), content)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_web_configuration_is_private_and_survives_upgrade_and_removal(self):
+        installer.install()
+        configuration = self.target / "conf/web-interface.cfg"
+        self.assertEqual(configuration.read_bytes(), (ROOT / "conf/web-interface.cfg").read_bytes())
+        self.assertEqual(configuration.stat().st_mode & 0o777, 0o600)
+        with zipfile.ZipFile(self.target / "bin/disk-ha-web") as archive:
+            self.assertIn("diskha/interface/WebConfiguration.py", archive.namelist())
+        saved = "[web]\nhost = localhost\nport = 23400\nrequest_timeout = 30\n"
+        configuration.write_text(saved)
+        installer.install()
+        self.assertEqual(configuration.read_text(), saved)
+        installer.uninstall()
+        self.assertEqual(configuration.read_text(), saved)
+        self.assertEqual(configuration.stat().st_mode & 0o777, 0o600)
+
+    def test_invalid_web_configuration_prevents_deployment(self):
+        installer.install()
+        archive = self.target / "bin/disk-ha-web"
+        previous = archive.read_bytes()
+        configuration = self.target / "conf/web-interface.cfg"
+        configuration.write_text("[web]\nhost = localhost\nport = 0\nrequest_timeout = 15\n")
+        self.restart.reset_mock()
+        with self.assertRaisesRegex(ValueError, "port must be between"):
+            installer.install()
+        self.assertEqual(archive.read_bytes(), previous)
+        self.restart.assert_not_called()
 
     def test_staging_failure_keeps_installed_metadata(self):
         installer.install()

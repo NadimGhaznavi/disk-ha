@@ -25,6 +25,7 @@ from diskha.interface.HealthConfiguration import HealthConfiguration
 from diskha.interface.HealthSchedule import HealthSchedule
 from diskha.interface.SyncConfiguration import SyncConfiguration
 from diskha.interface.SyncSchedule import SyncSchedule
+from diskha.interface.WebConfiguration import WebConfiguration
 
 
 def systemctl(*arguments: str) -> None:
@@ -32,9 +33,11 @@ def systemctl(*arguments: str) -> None:
 
 
 def restart() -> None:
+    configuration = WebConfiguration(installation_root() / "conf/web-interface.cfg")
     service = Path(DDiskHA.WEB_SERVICE_FILE).name
     systemctl("restart", service)
-    url = f"http://127.0.0.1:{DDiskHA.WEB_PORT}{DDiskHA.WEB_READY_PATH}"
+    host = "127.0.0.1" if configuration.host == "0.0.0.0" else configuration.host
+    url = f"http://{host}:{configuration.port}{DDiskHA.WEB_READY_PATH}"
     opener = build_opener(ProxyHandler({}))
     deadline = time.monotonic() + 10
     while True:
@@ -55,10 +58,10 @@ def restart() -> None:
             raise ValueError(f"Web UI readiness returned HTTP {status}; check journalctl -u {service}.") from None
         except (URLError, TimeoutError):
             if time.monotonic() >= deadline:
-                raise ValueError(f"Web UI did not respond on port {DDiskHA.WEB_PORT}; "
+                raise ValueError(f"Web UI did not respond on port {configuration.port}; "
                                  f"check journalctl -u {service}.") from None
         time.sleep(0.1)
-    print(f"disk-ha Web UI: active on port {DDiskHA.WEB_PORT} (listening on {DDiskHA.WEB_HOST})")
+    print(f"disk-ha Web UI: active on port {configuration.port} (listening on {configuration.host})")
 
 
 def installation_root(*, installing: bool = False) -> Path:
@@ -103,6 +106,12 @@ def install() -> None:
         directory = root / name
         directory.mkdir(exist_ok=True)
         directory.chmod(0o755 if name == "bin" else 0o700)
+    web_configuration = root / "conf/web-interface.cfg"
+    if not web_configuration.exists():
+        with web_configuration.open("x") as stream:
+            stream.write((REPOSITORY / "conf/web-interface.cfg").read_text())
+    web_configuration.chmod(0o600)
+    WebConfiguration(web_configuration)
     # Root writes SMART results; the Web UI group may only read them.
     os.chown(root / "data", os.geteuid(), account.pw_gid)
     (root / "data").chmod(0o750)
@@ -234,7 +243,8 @@ def install() -> None:
         "[Unit]\nDescription=disk-ha Web UI\nAfter=network.target\n\n"
         f"[Service]\nType=exec\nUser={DDiskHA.SERVICE_USER}\nGroup={DDiskHA.SERVICE_GROUP}\n"
         f"LoadCredential=database.env:{DDiskHA.DATABASE_ENV}\n"
-        f"ExecStart={root}/bin/disk-ha-web --host {DDiskHA.WEB_HOST} --port {DDiskHA.WEB_PORT}\n"
+        f"LoadCredential=web-interface.cfg:{web_configuration}\n"
+        f"ExecStart={root}/bin/disk-ha-web --config ${{CREDENTIALS_DIRECTORY}}/web-interface.cfg\n"
         "Restart=on-failure\nRestartSec=2\n\n[Install]\nWantedBy=multi-user.target\n")
     service.chmod(0o644)
     systemctl("daemon-reload")

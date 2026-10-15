@@ -1,28 +1,45 @@
 ---
-title: disk-ha
+title: Scheduled Disk Replication with Gmail Alerts
 ---
 
-# disk-ha
+## Overview
 
-This project formalizes two existing scripts for disk health monitoring and
-scheduled disk mirroring on Wintermute, a server with two local disks.
-Its purpose is to notify the operator when either disk starts failing, giving
-them time to act before a second disk failure causes data loss.
+This project is a basic disk replication application. It includes a web interface to:
 
-## Background
+- Choosesource and target directories.
+- Set a SMART health check (cron) schedule.
+- Set a (rsync) data synchronization (cron) schedule.
+- Execute a manual health check.
+- Email a disk report to a Gmail account.
 
-Wintermute was rebuilt, but the automated disk checks and synchronization were
-not restored. The omission was discovered on October 8, 2026, and a manual sync
-was started. This project should make the setup straightforward to reinstall
-and verify after future rebuilds.
+**IMPORTANT NOTE**: The `rsync` operation includes the `--delete` flag, which means that delete operations on the source are propaged to the target.
 
-The existing scripts are in `/opt/dev/utils/bin`:
+## Download & Install
 
-- `check-disks.sh` checks both disks using SMART, including overall health and
-  attributes that can indicate degradation. It prints a report and sends an
-  email alert when it detects a problem.
-- `sync-drives.sh` uses rsync to mirror the primary disk to the recovery disk.
-  It propagates deletions and writes a synchronization log.
+You can download the latest release tarball from [GitHub](https://github.com/NadimGhaznavi/disk-ha) or you can clone the repo with `git`:
+
+```sh
+sudo git clone https://github.com/NadimGhaznavi/disk-ha
+cd disk-ha
+sudo ./scripts/install.sh
+```
+
+The **DiskHA** software installs into `/opt/prod/diskha`.
+
+## Configuring the Web Interface
+
+The installation includes a `/opt/prod/diskha/conf/web-interface.cfg` file that lets you configure:
+
+- The network interface to bind to (e.g. `0.0.0.0.` is all, `127.0.0.1` is only localhost).
+- The port number that the web service listens on.
+- The HTTP request timeout in seconds.
+
+```sh
+[web]
+host = 0.0.0.0
+port = 23300
+request_timeout = 15
+```
 
 ## Disk layout
 
