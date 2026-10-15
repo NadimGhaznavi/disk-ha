@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **ayēnānēw** (8) release.
+
+### Added
+
+- A **Most recent health check output** link opens the latest saved check,
+  including both disks' raw SMART output and any email delivery failure.
+
+### Changed
+
+- Rename the email report button to **Email Health Check**.
+
+- Configure the web interface host, port, and request timeout in
+  `/opt/prod/diskha/conf/web-interface.cfg`; changes apply after restarting
+  `disk-ha-web.service`. Invalid settings produce a clear startup error, and
+  installation upgrades preserve the configuration file.
+
 ## [2.1.1] - 2026-10-14 @ 04:10
 
 This release celebrates the Cree language: This is the **tēpakohp** (7) release.

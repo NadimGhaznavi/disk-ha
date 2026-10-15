@@ -27,6 +27,8 @@ The Disk Health panel reads the latest saved check results and displays their
 timestamp in server local time (`YYYY-MM-DD HH:MM:SS`), each disk's status and
 details, and email delivery failures.
 No recorded result and unreadable or corrupt results have explicit messages.
+**Most recent health check output** opens a separate page with the saved timestamp,
+health summary, both disks' raw SMART output, and any email delivery failure.
 The Health Check Schedule section reads the installed cron entry to populate
 **Enabled** and **Cron Schedule**.
 Edit the five-field expression and click **Update** to save it. Uncheck **Enabled**
@@ -43,7 +45,7 @@ The button is disabled when scheduling is disabled.
 timestamps, and success or failure. See
 [data synchronization]({{ site.baseurl }}{% link pages/data-sync.md %}) for configuration.
 The final Email Notification section shows **Contact**, the configured alert recipient.
-Click **Email disk report** to request a fresh, verbose SMART report for both disks,
+Click **Email Health Check** to request a fresh, verbose SMART report for both disks,
 including healthy disks. The request runs in the background, waits for an active
 health check, and works when the cron schedule is disabled. Reload Disk Health
 after completion to see the latest results and any email delivery failure.
