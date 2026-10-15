@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **kēkā-mitātaht** (9) release.
+
+### Changed
+
+- Move **Run Now** below the results in the Disk Health section.
+- Additional website content.
+
 ## [2.2.0] - 2026-10-15 @ 03:49
 
 This release celebrates the Cree language. This is the **ayēnānēw** (8) release.
