@@ -301,6 +301,10 @@ compress_html:
 
 # Defaults
 defaults:
+  - scope:
+      path: ""
+    values:
+      classes: wide
   # _posts
   - scope:
       path: ""

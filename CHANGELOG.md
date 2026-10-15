@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **mitātaht** (10) release.
+
+### Added
+
+- Add website TOC, dividers.
+
+### Changed
+
+- Widen documentation pages using the theme's built-in wide layout.
+
 ## [2.2.1] - 2026-10-15 @ 04:20
 
 This release celebrates the Cree language. This is the **kēkā-mitātaht** (9) release.

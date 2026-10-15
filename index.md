@@ -2,6 +2,14 @@
 title: Scheduled Disk Replication with Gmail Alerts
 ---
 
+## Table of Contents
+{:.no_toc}
+
+* TOC
+{:toc}
+
+---
+
 ## Overview
 
 This project implements basic disk replication between two local disks. **DiskHA** uses `rsync` to synchronize the data and `cron` to schedule it. It ships with easy-to-use *install* and *uninstall* scripts. **DiskHA** also includes a web interface to:
@@ -23,6 +31,8 @@ I use this software on my NFS server. I have a pair of 8 TB drives. I export the
 
 This design follows the (K)eep (I)t (S)imple (S)illy principle.
 
+---
+
 ## Download & Install
 
 You can download the latest release tarball from [GitHub](https://github.com/NadimGhaznavi/disk-ha) or you can clone the repo with `git`:
@@ -34,6 +44,8 @@ sudo ./scripts/install.sh
 ```
 
 The **DiskHA** software installs into `/opt/prod/diskha`.
+
+---
 
 ## Configuring the Web Interface
 
@@ -49,6 +61,9 @@ host = 0.0.0.0
 port = 23300
 request_timeout = 15
 ```
+
+---
+
 ## The Web Interface
 
 The [web interface](/pages/images/web-interface.png) is broken down into sections.
@@ -82,6 +97,8 @@ This section shows the latest disk health check results and includes a *Run Now*
 ![Email Notification](/pages/images/email-notification.png)
 
 This section shows the configured Gmail address and also includes an *Email Health Check* button. This can be used to test your email notification configuration.
+
+---
 
 ## Comments? Questions? Feedback?
 
