@@ -75,7 +75,7 @@ Cron appends reports, skipped-run messages, and command failures to
 A configuration or persistence failure exits with status 1 and leaves the last
 completed result in place; check its timestamp and the log.
 Mail credentials stay in the external msmtp file and are not logged.
-**Email disk report** uses the configured mail recipient and runs `smartctl -x`
+**Email Health Check** uses the configured mail recipient and runs `smartctl -x`
 on both disks after a normal `smartctl -H -A` health check. The normal check
 determines disk health; optional extended-command failures remain visible in the
 report without changing that verdict. It emails one report with full SMART output

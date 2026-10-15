@@ -87,7 +87,7 @@ directories on port `23300`, with filesystem capacity, usage, and free space in 
 configured cron job and saves results in a flat JSON file displayed by the Web UI.
 Health Check Schedule reads and edits the installed cron schedule. The Disk Health
 panel provides **Run Now** for a background health check.
-Email Notification shows the configured contact and provides **Email disk report**
+Email Notification shows the configured contact and provides **Email Health Check**
 for a fresh, verbose SMART report of both disks.
 The initial schedule checks daily at 14:00 server time and retains the existing
 script's email settings. Installed settings are preserved on upgrade.

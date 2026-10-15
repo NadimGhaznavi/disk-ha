@@ -86,7 +86,7 @@ def render_email_notification() -> str:
         contact = escape(recipient) if recipient is not None else "Not configured"
         disabled = " disabled" if recipient is None else ""
     return (f'<p>Contact: {contact}</p>'
-            f'<button id="email-report" type="button"{disabled}>Email disk report</button>'
+            f'<button id="email-report" type="button"{disabled}>Email Health Check</button>'
             '<p id="email-status" role="status" aria-live="polite"></p>')
 
 

@@ -45,7 +45,7 @@ The button is disabled when scheduling is disabled.
 timestamps, and success or failure. See
 [data synchronization]({{ site.baseurl }}{% link pages/data-sync.md %}) for configuration.
 The final Email Notification section shows **Contact**, the configured alert recipient.
-Click **Email disk report** to request a fresh, verbose SMART report for both disks,
+Click **Email Health Check** to request a fresh, verbose SMART report for both disks,
 including healthy disks. The request runs in the background, waits for an active
 health check, and works when the cron schedule is disabled. Reload Disk Health
 after completion to see the latest results and any email delivery failure.

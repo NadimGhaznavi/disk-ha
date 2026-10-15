@@ -39,7 +39,7 @@ class HealthControlTests(unittest.TestCase):
         with patch("diskha.server.DrivePage.read_contact", return_value="<operator>@example.com"):
             html = render_email_notification()
             self.assertIn("Contact: &lt;operator&gt;@example.com", html)
-            self.assertIn("Email disk report", html)
+            self.assertIn("Email Health Check", html)
             self.assertNotIn(" disabled", html)
         with patch("diskha.server.DrivePage.read_contact", return_value=None):
             self.assertIn("Not configured", render_email_notification())
