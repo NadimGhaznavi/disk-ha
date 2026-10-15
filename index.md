@@ -4,15 +4,24 @@ title: Scheduled Disk Replication with Gmail Alerts
 
 ## Overview
 
-This project is a basic disk replication application. It includes a web interface to:
+This project implements basic disk replication between two local disks. **DiskHA** uses `rsync` to synchronize the data and `cron` to schedule it. It ships with easy-to-use *install* and *uninstall* scripts. **DiskHA** also includes a web interface to:
 
-- Choosesource and target directories.
+- Choose source and target directories.
 - Set a SMART health check (cron) schedule.
 - Set a (rsync) data synchronization (cron) schedule.
-- Execute a manual health check.
-- Email a disk report to a Gmail account.
+- Execute a manual (SMART) health check.
+- Email a (SMART) disk report to a Gmail account.
 
-**IMPORTANT NOTE**: The `rsync` operation includes the `--delete` flag, which means that delete operations on the source are propaged to the target.
+**IMPORTANT NOTES**: 
+
+- The `rsync` operation includes the `--delete` flag, which means that delete operations on the source are propagated to the target. This app is about replication, this is **not** a backup solution.
+- This app does not support RAID or LVM drives.
+
+### Example Use
+
+I use this software on my NFS server. I have a pair of 8 TB drives. I export the source as read-write. When I have a disk failure, I power down the server and disconnect both drives until I have received a replacement. When the disk arrives, I connect it (power, data), power up, create a filesystem, update the UUID in the `/etc/fstab`. Finally, I fire up **DiskHA**, reconfigure the sync directories and click on *Sync Now*.
+
+This design follows the (K)eep (I)t (S)imple (S)illy principle.
 
 ## Download & Install
 
@@ -40,61 +49,42 @@ host = 0.0.0.0
 port = 23300
 request_timeout = 15
 ```
+## The Web Interface
 
-## Disk layout
+The [web interface](/pages/images/web-interface.png) is broken down into sections.
 
-| Role | Mount point | Filesystem UUID | Existing sync path |
-| --- | --- | --- | --- |
-| Primary | `/exports/disk1` | `824971c7-d263-4b6a-a562-3452c3482ece` | `/exports/old` |
-| Recovery copy | `/exports/disk2` | `b14c1ec0-df91-4f3d-a990-b0c820b81a9c` | `/exports/new` |
+### Drive Configuration
 
-Both filesystems are ext4 and are mounted by UUID through `/etc/fstab`.
-Synchronization runs from the primary to the recovery copy.
+![Drive Configuration](/pages/images/drive-config.png)
 
-## Agreed scope and behavior
+The source and destination directories are configured here. These should be on two different local disks.
 
-- Check both disks regularly for failure or degradation and notify the operator
-  when a problem is detected.
-- Synchronize the recovery disk on a schedule.
-- Select source and target directories, including differently named
-  subdirectories, on two distinct local drives. Detect their backing mounts,
-  filesystem UUIDs, and stable drive identities for mirroring and monitoring.
-- Continue scheduled synchronization when a disk health check raises an alert.
-- Verify that both expected disks are mounted before synchronization. A missing
-  or incorrect mount must prevent that sync run, especially because rsync uses
-  `--delete`.
-- Make configuration, scheduling, installation, and verification clear enough
-  to restore reliably after a server rebuild.
+### Health Check Schdule
 
-The recovery disk is a mirror: deletions on the primary propagate to it. It does
-not retain earlier versions. Monitoring and mirroring reduce the risk of data
-loss but cannot guarantee protection against two sudden disk failures.
+![Heatth Check Schedule](/pages/images/health-check-schedule.png)
 
-## Manual response and boundaries
+The `cron` health check schedule is set here. Run `man 5 crontab` to learn about cron job scheduling.
 
-Disk replacement and recovery are manual. On receiving a disk failure alert,
-the operator will power down the server, disconnect the drives, obtain one or
-two replacements as needed, reconnect the appropriate drives, and synchronize
-the replacement storage.
+### Data Sync Schedule
 
-NFS configuration, NFS failover, and automatic recovery are outside this
-project's scope.
+![Data Sync Schedule](/pages/images/data-sync-schedule.png)
 
-The [web interface]({{ site.baseurl }}{% link pages/web-interface.md %}) currently
-displays a title bar and Drive Configuration controls for source and target
-directories on port `23300`, with filesystem capacity, usage, and free space in TB.
-[Disk health]({{ site.baseurl }}{% link pages/disk-health.md %}) runs through a
-configured cron job and saves results in a flat JSON file displayed by the Web UI.
-Health Check Schedule reads and edits the installed cron schedule. The Disk Health
-panel provides **Run Now** for a background health check.
-Email Notification shows the configured contact and provides **Email Health Check**
-for a fresh, verbose SMART report of both disks.
-The initial schedule checks daily at 14:00 server time and retains the existing
-script's email settings. Installed settings are preserved on upgrade.
-[Data synchronization]({{ site.baseurl }}{% link pages/data-sync.md %}) mirrors
-the selected source directory to the target every four hours by default. Data Sync Schedule reads and edits
-its cron entry and links to the most recent verbose output.
+Configure the `cron` data sync schedule here.
 
-## Development
+### Disk Health
 
-[Coding guidelines]({{ site.baseurl }}{% link pages/coding-guidelines.md %})
+![Disk Health](/pages/images/disk-health.png)
+
+This section shows the latest disk health check results and includes a *Run Now* button to manually trigger a health check.
+
+### Email Notification
+
+![Email Notification](/pages/images/email-notification.png)
+
+This section shows the configured Gmail address and also includes an *Email Health Check* button. This can be used to test your email notification configuration.
+
+## Comments? Questions? Feedback?
+
+If you like this project and/or find it useful. Please give the [GitHub Repo](https://github.com/NadimGhaznavi/disk-ha/stargazers) a star.
+
+Please contact me if you find any bugs or would like to see additional features.
