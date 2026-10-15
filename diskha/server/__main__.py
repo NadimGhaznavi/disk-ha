@@ -3,6 +3,8 @@
 import argparse
 import json
 import subprocess
+from functools import partial
+from pathlib import Path
 from importlib.resources import files
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -10,13 +12,19 @@ from diskha.constants.DDiskHA import DDiskHA
 from diskha.server.DrivePage import render_page
 from diskha.interface.HealthControl import request_check, request_email_report, request_sync, update_schedule, update_sync_schedule
 from diskha.server.SyncPage import render_sync_output
+from diskha.server.HealthPage import render_health_output
 from diskha.interface.DriveControl import select_drives
+from diskha.interface.WebConfiguration import WebConfiguration
 
 
 class WebHandler(BaseHTTPRequestHandler):
+    def __init__(self, *args, request_timeout: int, **kwargs):
+        self.request_timeout = request_timeout
+        super().__init__(*args, **kwargs)
+
     def setup(self) -> None:
         super().setup()
-        self.connection.settimeout(DDiskHA.WEB_REQUEST_TIMEOUT)
+        self.connection.settimeout(self.request_timeout)
 
     def do_GET(self) -> None:
         self.serve()
@@ -126,6 +134,8 @@ class WebHandler(BaseHTTPRequestHandler):
             status, body, content_type = 200, b'{"ready": true}\n', "application/json; charset=utf-8"
         elif path == "/":
             status, body, content_type = 200, render_page(), "text/html; charset=utf-8"
+        elif path == "/health/output":
+            status, body, content_type = 200, render_health_output(), "text/html; charset=utf-8"
         elif path == "/static/diskha.png":
             status, body, content_type = 200, (files("diskha.server") / "static/diskha.png").read_bytes(), "image/png"
         else:
@@ -145,14 +155,22 @@ class WebHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default=DDiskHA.WEB_HOST)
-    parser.add_argument("--port", type=int, default=DDiskHA.WEB_PORT)
+    parser.add_argument("--config", type=Path, default=Path(DDiskHA.WEB_CONFIG))
+    parser.add_argument("--host", help="Override the configured listening host.")
+    parser.add_argument("--port", type=int, help="Override the configured listening port.")
     args = parser.parse_args()
-    if not 1 <= args.port <= 65535:
+    if args.port is not None and not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535.")
     try:
-        with ThreadingHTTPServer((args.host, args.port), WebHandler) as server:
-            print(f"disk-ha Web UI: http://{args.host}:{server.server_port}/", flush=True)
+        configuration = WebConfiguration(args.config)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"disk-ha: {error}\n")
+    host = args.host if args.host is not None else configuration.host
+    port = args.port if args.port is not None else configuration.port
+    handler = partial(WebHandler, request_timeout=configuration.request_timeout)
+    try:
+        with ThreadingHTTPServer((host, port), handler) as server:
+            print(f"disk-ha Web UI: http://{host}:{server.server_port}/", flush=True)
             server.serve_forever()
     except KeyboardInterrupt:
         pass

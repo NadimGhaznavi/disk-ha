@@ -1,6 +1,7 @@
 """Verify the web server and installed archive without production changes."""
 
 from contextlib import redirect_stdout
+from functools import partial
 import io
 import json
 import os
@@ -29,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class WebTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), WebHandler)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), partial(WebHandler, request_timeout=15))
         cls.thread = Thread(target=cls.server.serve_forever)
         cls.thread.start()
         cls.url = f"http://127.0.0.1:{cls.server.server_port}"
@@ -61,6 +62,18 @@ class WebTests(unittest.TestCase):
                 self.opener.open(self.url + path, timeout=2)
             self.assertEqual(raised.exception.code, 404)
             raised.exception.close()
+
+    def test_health_output_link_get_and_head(self):
+        with patch("diskha.server.DrivePage.read_drives", side_effect=OSError("not installed")):
+            self.assertIn(b'<a href="/health/output">Most recent health check output</a>', render_page())
+        with patch("diskha.server.__main__.render_health_output", return_value=b"<pre>health</pre>") as render:
+            with self.opener.open(self.url + "/health/output", timeout=2) as response:
+                self.assertEqual(response.read(), b"<pre>health</pre>")
+                self.assertEqual(response.headers["Content-Type"], "text/html; charset=utf-8")
+                self.assertEqual(response.headers["Cache-Control"], "no-store")
+            with self.opener.open(Request(self.url + "/health/output", method="HEAD"), timeout=2) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.read(), b"")
 
     def test_logo_get_and_head(self):
         expected = (ROOT / "pages/images/diskha.png").read_bytes()
@@ -257,11 +270,13 @@ class WebTests(unittest.TestCase):
                     redirect_stdout(io.StringIO()):
                 installer.install()
             archive = target / "bin/disk-ha-web"
+            configuration = target / "conf/web-interface.cfg"
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 port = listener.getsockname()[1]
+            configuration.write_text(f"[web]\nhost = 127.0.0.1\nport = {port}\nrequest_timeout = 1\n")
             process = subprocess.Popen(
-                [str(archive), "--host", "127.0.0.1", "--port", str(port)],
+                [str(archive), "--config", str(configuration)],
                 cwd=temporary, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
                 self.assertTrue(select.select([process.stdout], [], [], 5)[0], "Startup timed out")
@@ -275,11 +290,31 @@ class WebTests(unittest.TestCase):
                 with self.opener.open(f"http://127.0.0.1:{port}/static/diskha.png", timeout=2) as response:
                     self.assertEqual(response.headers["Content-Type"], "image/png")
                     self.assertEqual(response.read(), (ROOT / "pages/images/diskha.png").read_bytes())
+                # An incomplete request is closed using the configured socket timeout.
+                with socket.create_connection(("127.0.0.1", port), timeout=3) as connection:
+                    connection.sendall(b"GET /ready HTTP/1.1\r\n")
+                    self.assertEqual(connection.recv(1), b"")
+            finally:
+                process.terminate()
+                process.communicate(timeout=5)
+            with socket.socket() as listener:
+                listener.bind(("127.0.0.1", 0))
+                new_port = listener.getsockname()[1]
+            configuration.write_text(f"[web]\nhost = localhost\nport = {new_port}\nrequest_timeout = 5\n")
+            process = subprocess.Popen(
+                [str(archive), "--config", str(configuration)],
+                cwd=temporary, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                self.assertTrue(select.select([process.stdout], [], [], 5)[0], "Restart timed out")
+                self.assertIn(f"http://localhost:{new_port}/", process.stdout.readline())
+                with self.opener.open(f"http://127.0.0.1:{new_port}/ready", timeout=2) as response:
+                    self.assertEqual(json.load(response), {"ready": True})
             finally:
                 process.terminate()
                 process.communicate(timeout=5)
             process = subprocess.Popen(
-                [sys.executable, str(archive), "--host", "127.0.0.1", "--port", str(self.server.server_port)],
+                [sys.executable, str(archive), "--config", str(configuration),
+                 "--host", "127.0.0.1", "--port", str(self.server.server_port)],
                 cwd=temporary, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             # An occupied port must fail, rather than report successful startup.
             stdout, stderr = process.communicate(timeout=5)
@@ -292,9 +327,33 @@ class WebTests(unittest.TestCase):
             stdout, stderr = process.communicate(timeout=5)
             self.assertEqual(process.returncode, 2)
             self.assertIn("--port must be between", stderr)
+            configuration.write_text("[web]\nhost = 127.0.0.1\nport = 0\nrequest_timeout = 15\n")
+            result = subprocess.run([str(archive), "--config", str(configuration)],
+                                    cwd=temporary, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Invalid web configuration", result.stderr)
+            self.assertIn("port must be between", result.stderr)
+            self.assertNotIn("Web UI:", result.stdout)
+            configuration.unlink()
+            result = subprocess.run([str(archive), "--config", str(configuration)],
+                                    cwd=temporary, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(str(configuration), result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
 
 
 class ReadinessTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="disk-ha-readiness-test-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        (self.root / "conf").mkdir()
+        self.configuration = self.root / "conf/web-interface.cfg"
+        self.configuration.write_bytes((ROOT / "conf/web-interface.cfg").read_bytes())
+        root = patch.object(installer, "installation_root", return_value=self.root)
+        root.start()
+        self.addCleanup(root.stop)
+
     def test_restart_checks_service_and_http_with_timeouts(self):
         opener = MagicMock()
         opener.open.return_value.__enter__.return_value.status = 200
@@ -307,6 +366,22 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(args[0].full_url, "http://127.0.0.1:23300/ready")
         self.assertEqual(args[0].method, "HEAD")
         self.assertEqual(kwargs["timeout"], 1)
+
+    def test_restart_checks_configured_host_and_port(self):
+        self.configuration.write_text("[web]\nhost = 127.0.0.2\nport = 23400\nrequest_timeout = 30\n")
+        opener = MagicMock()
+        opener.open.return_value.__enter__.return_value.status = 200
+        with patch.object(installer, "systemctl"), \
+                patch.object(installer, "build_opener", return_value=opener), redirect_stdout(io.StringIO()):
+            installer.restart()
+        self.assertEqual(opener.open.call_args.args[0].full_url, "http://127.0.0.2:23400/ready")
+
+    def test_invalid_configuration_prevents_restart(self):
+        self.configuration.write_text("[web]\nport = 0\n")
+        with patch.object(installer, "systemctl") as control:
+            with self.assertRaisesRegex(ValueError, "Invalid web configuration"):
+                installer.restart()
+        control.assert_not_called()
 
     def test_unavailable_server_fails_after_deadline(self):
         opener = MagicMock()

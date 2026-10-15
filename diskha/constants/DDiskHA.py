@@ -4,15 +4,13 @@ from typing import Final
 
 
 class DDiskHA:
-    VERSION: Final[str] = "2.1.1"
+    VERSION: Final[str] = "2.2.0"
     CMDB_SUBTYPE: Final[str] = "Disk Monitoring and Mirroring"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "tepakohp"
+    CMDB_CODENAME: Final[str] = "ayenanew"
     INSTALL_DIR: Final[str] = "/opt/prod/diskha"
     LEGACY_INSTALL_DIR: Final[str] = "/opt/prod/disk-ha"
-    WEB_HOST: Final[str] = "0.0.0.0"
-    WEB_PORT: Final[int] = 23300
-    WEB_REQUEST_TIMEOUT: Final[int] = 15
+    WEB_CONFIG: Final[str] = "/opt/prod/diskha/conf/web-interface.cfg"
     WEB_READY_PATH: Final[str] = "/ready"
     WEB_SERVICE_FILE: Final[str] = "/etc/systemd/system/disk-ha-web.service"
     SYSTEMCTL: Final[str] = "/usr/bin/systemctl"
