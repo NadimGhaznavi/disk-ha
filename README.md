@@ -1,2 +1,2 @@
-Project Homepage: [diskha.osoylace.com](https://diskha.osoylace.com).
+Project Homepage: [diskha.osoyalce.com](https://diskha.osoyalce.com).
 

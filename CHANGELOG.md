@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **nikotwāsosāp** (16) release.
+
+### Fixed
+
+- Link in the README.
+
 ## [2.3.0] - 2026-10-16 @ 23:10
 
 This release celebrates the Cree languae. This is the **niyānanosāp** (15) release.
