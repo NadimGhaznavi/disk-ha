@@ -1,5 +1,6 @@
 ---
 title: Scheduled Disk Replication with Gmail Alerts
+author_profile: true
 ---
 
 ![Architecture](/pages/images/diskha-architecture.png)
