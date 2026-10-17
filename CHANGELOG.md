@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-16 @ 23:10
+
+This release celebrates the Cree languae. This is the **niyānanosāp** (15) release.
+
+### Added
+
+- A web page on setting up msmtp and Gmail.
+
 ## [2.2.4] - 2026-10-16 @ 21:09
 
 This release celebrates the Cree language. This is the **nīsosāp** (12) release.

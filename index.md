@@ -36,6 +36,13 @@ This design follows the (K)eep (I)t (S)imple (S)illy principle.
 
 ---
 
+## Pre-Requisites
+
+You need to install `msmtp` and setup your Gmail account to use it.
+
+See the [mwmtp with Gmail setup](/pages/msmtp-gmail-setup)
+---
+
 ## Download & Install
 
 You can download the latest release tarball from [GitHub](https://github.com/NadimGhaznavi/disk-ha) or you can clone the repo with `git`:
