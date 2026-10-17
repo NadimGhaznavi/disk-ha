@@ -1,6 +1,7 @@
 ---
 title: Send emails using msmtp with a Gmail account
 author_profile: true
+layout: single
 ---
 
 ## Install msmtp

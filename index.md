@@ -40,7 +40,8 @@ This design follows the (K)eep (I)t (S)imple (S)illy principle.
 
 You need to install `msmtp` and setup your Gmail account to use it.
 
-See the [mwmtp with Gmail setup](/pages/msmtp-gmail-setup)
+See the [msmtp with Gmail setup]({{ site.baseurl }}{% link pages/msmtp-gmail-setup.md %}).
+
 ---
 
 ## Download & Install

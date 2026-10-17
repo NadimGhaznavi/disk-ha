@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-10-17 @ 02:41
+
+The **Apollo** release is named for the *NASA Moon landing program*.
+
+### Fixed
+
+- Made Front Matter consistent.
+
 ## [2.3.1] - 2026-10-16 @ 23:15
 
 This release celebrates the Cree language. This is the **nikotwāsosāp** (16) release.
