@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is named for the element **Lithium (Li)**, the lightest of all metals.
+
+## Added
+
+- CMDB declarations for application type, configuration and saved-data directories,
+  the local MariaDB database, and the default HTTP listener.
+
+### Changed
+
+- Application paths, database provisioning, and HTTP defaults use the CMDB declarations.
+- Web settings now use `conf/diskha.json`, with validated partial network overrides
+  shared by the server and restart readiness check. The old INI settings are no
+  longer read; configure the new JSON file when installing this update.
+
 ## [2.3.2] - 2026-10-17 @ 02:41
 
 The **Apollo** release is named for the *NASA Moon landing program*.

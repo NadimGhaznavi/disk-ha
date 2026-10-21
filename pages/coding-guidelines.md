@@ -62,7 +62,11 @@ saved data belongs in `/opt/prod/diskha/data/`.
 
 `DDiskHA.VERSION` and `DDiskHA.CMDB_CODENAME` MUST remain single-line literal
 strings in `diskha/constants/DDiskHA.py` for release tooling and CMDB discovery.
-Keep `CMDB_SUBTYPE`, `CMDB_SUPPLIER`, and `INSTALL_DIR` in that same class.
+Keep all `CMDB_*` declarations and `INSTALL_DIR` in that same class.
+Discovery metadata MUST be literal data. Runtime filesystem paths, local database
+provisioning, and listener defaults MUST use the matching declarations.
+Production listener overrides belong in `conf/diskha.json`; do not duplicate
+listener defaults in configuration templates.
 CMDB registers this application as `DiskHA` and discovers
 `/opt/prod/diskha/diskha/constants/DDiskHA.py`. Preserve that naming convention.
 Keep the legacy installation alias for upgrades so saved state and worker locks
