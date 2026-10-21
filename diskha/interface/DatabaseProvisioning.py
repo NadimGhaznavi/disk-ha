@@ -35,7 +35,7 @@ class DatabaseProvisioning:
             raise ValueError(message) from None
 
     def _create_local(self):
-        database = DDiskHA.DATABASE_NAME
+        database = dict(DDiskHA.CMDB_DATABASES)["DiskHA"]
         user = DDiskHA.DATABASE_USER
         if not all(re.fullmatch(r"[A-Za-z0-9_]+", value) for value in (database, user)):
             raise ValueError("Local database and account names must contain letters, digits, or underscores.")

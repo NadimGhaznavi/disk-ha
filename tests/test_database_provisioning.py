@@ -80,6 +80,14 @@ class ProvisioningTests(unittest.TestCase):
             self.assertTrue(call.kwargs["check"])
         self.assertEqual(list(self.credentials.parent.iterdir()), [self.credentials])
 
+    def test_database_declaration_drives_provisioning(self):
+        with patch.object(DDiskHA, "CMDB_DATABASES", (("DiskHA", "diskha_inventory_test"),)):
+            self.provisioner.provision()
+        self.assertEqual(DatabaseEnvironment.read(self.credentials)["DB_NAME"], "diskha_inventory_test")
+        self.assertIn("CREATE DATABASE IF NOT EXISTS `diskha_inventory_test`",
+                      self.run.call_args_list[0].kwargs["input"])
+        self.assertIn('database="diskha_inventory_test"', self.options[0])
+
     def test_existing_custom_credentials_are_retained_without_account_commands(self):
         before = self.existing()
         self.provisioner.provision()
@@ -148,7 +156,7 @@ class ProvisioningTests(unittest.TestCase):
         for database, user in (("diskha`; DROP DATABASE other", "diskha"),
                                ("diskha", "root"), ("mysql", "diskha")):
             with self.subTest(database=database, user=user), \
-                    patch.object(DDiskHA, "DATABASE_NAME", database), \
+                    patch.object(DDiskHA, "CMDB_DATABASES", (("DiskHA", database),)), \
                     patch.object(DDiskHA, "DATABASE_USER", user), self.assertRaises(ValueError):
                 self.provisioner.provision()
         self.run.assert_not_called()

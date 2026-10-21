@@ -1,44 +1,73 @@
-"""Verify web configuration validation without reading installed settings."""
+"""Verify CMDB listener defaults and production override validation."""
 
+import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
+from diskha.constants.DDiskHA import DDiskHA
 from diskha.interface.WebConfiguration import WebConfiguration
+from diskha.server.__main__ import main
 
 
 class WebConfigurationTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="disk-ha-web-config-test-")
         self.addCleanup(temporary.cleanup)
-        self.path = Path(temporary.name) / "web-interface.cfg"
+        self.path = Path(temporary.name) / "diskha.json"
 
-    def test_settings_accept_addresses_and_hostnames(self):
-        for host in ("0.0.0.0", "127.0.0.1", "localhost", "disk-ha.example.com"):
-            with self.subTest(host=host):
-                self.path.write_text(f"[web]\nhost = {host}\nport = 23400\nrequest_timeout = 30\n")
+    def test_missing_file_uses_declaration(self):
+        with patch.object(DDiskHA, "CMDB_NETWORK", (("http", "127.0.0.2", 23400),)):
+            configuration = WebConfiguration(self.path)
+        self.assertEqual((configuration.host, configuration.port), ("127.0.0.2", 23400))
+        self.assertEqual(configuration.network.destination("http"), ("127.0.0.2", 23400))
+        self.assertEqual(configuration.request_timeout, 15)
+
+    def test_partial_overrides_and_local_destinations(self):
+        for overrides, expected in (({}, ("0.0.0.0", 23300)),
+                                    ({"port": 23400}, ("0.0.0.0", 23400)),
+                                    ({"interface": "127.0.0.2"}, ("127.0.0.2", 23300))):
+            with self.subTest(overrides=overrides):
+                self.path.write_text(json.dumps({"network": {"http": overrides}, "request_timeout": 30}))
                 configuration = WebConfiguration(self.path)
-                self.assertEqual((configuration.host, configuration.port, configuration.request_timeout),
-                                 (host, 23400, 30))
+                self.assertEqual(configuration.network.binding("http"), expected)
+                host = "127.0.0.1" if expected[0] == "0.0.0.0" else expected[0]
+                self.assertEqual(configuration.network.destination("http"), (host, expected[1]))
+                self.assertEqual(configuration.request_timeout, 30)
+                self.path.write_text(json.dumps(configuration.settings()))
+                self.assertEqual(WebConfiguration(self.path).settings(), configuration.settings())
+
+    def test_server_uses_resolved_defaults_and_cli_overrides(self):
+        self.path.write_text('{"network":{"http":{"port":23401}}}')
+        for arguments, expected in (([], ("127.0.0.2", 23401)),
+                                    (["--host", "127.0.0.1", "--port", "23402"],
+                                     ("127.0.0.1", 23402))):
+            with self.subTest(arguments=arguments), \
+                    patch.object(DDiskHA, "CMDB_NETWORK", (("http", "127.0.0.2", 23400),)), \
+                    patch("sys.argv", ["disk-ha-web", "--config", str(self.path), *arguments]), \
+                    patch("diskha.server.__main__.ThreadingHTTPServer") as server:
+                server.return_value.__enter__.side_effect = KeyboardInterrupt
+                main()
+                self.assertEqual(server.call_args.args[0], expected)
 
     def test_invalid_values_identify_the_configuration_file(self):
-        settings = {"host": "0.0.0.0", "port": "23300", "request_timeout": "15"}
-        for field, value in (("host", ""), ("host", "256.1.1.1"), ("host", "http://localhost"),
-                             ("host", "::1"), ("host", "bad host"), ("port", "0"), ("port", "65536"),
-                             ("port", "abc"), ("request_timeout", "0"), ("request_timeout", "-1"),
-                             ("request_timeout", "1.5"), ("request_timeout", "inf")):
-            with self.subTest(field=field, value=value):
-                values = settings | {field: value}
-                self.path.write_text("[web]\n" + "".join(f"{key} = {item}\n" for key, item in values.items()))
+        invalid = [[], None, {"unknown": 1}, {"network": []}, {"network": {"backend": {}}},
+                   {"network": {"http": []}}, {"network": {"http": {"host": "127.0.0.1"}}}]
+        invalid += [{"network": {"http": {"interface": value}}}
+                    for value in (None, True, 123, "localhost", "::1", "256.1.1.1", "")]
+        invalid += [{"network": {"http": {"port": value}}}
+                    for value in (None, True, 0, 65536, "23300", 23300.0)]
+        invalid += [{"request_timeout": value} for value in (None, True, 0, -1, 1.5, "15", 2147483648)]
+        for settings in invalid:
+            with self.subTest(settings=settings):
+                self.path.write_text(json.dumps(settings))
                 with self.assertRaises(ValueError) as raised:
                     WebConfiguration(self.path)
                 self.assertIn(str(self.path), str(raised.exception))
 
-    def test_missing_unknown_and_duplicate_fields_fail(self):
-        valid = "[web]\nhost = 0.0.0.0\nport = 23300\nrequest_timeout = 15\n"
-        for content in ("", "not an INI file", valid.replace("port = 23300\n", ""),
-                        valid + "unknown = 1\n", valid + "port = 23400\n",
-                        valid + "[other]\nvalue = 1\n", "[DEFAULT]\nvalue = 1\n" + valid):
+    def test_malformed_json_and_ini_are_rejected(self):
+        for content in ("", "{", "[web]\nhost = 0.0.0.0\nport = 23300\n"):
             with self.subTest(content=content):
                 self.path.write_text(content)
                 with self.assertRaisesRegex(ValueError, "Invalid web configuration"):

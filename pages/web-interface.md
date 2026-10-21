@@ -78,7 +78,10 @@ and filesystem metadata; the Web UI does not read file contents.
 
 Register **DiskHA** (case-sensitive) through CMDB's **Add Application**.
 Discovery reads `/opt/prod/diskha/diskha/constants/DDiskHA.py` for the
-installed version, subtype, supplier, and release codename.
+installed version, type, subtype, supplier, release codename, configuration and
+saved-data directories, and local MariaDB catalog reference.
+`CMDB_NETWORK` declares the default HTTP listener; CMDB network collection is
+not yet implemented.
 Development checkouts are not discovery targets.
 
 When upgrading an installation at `/opt/prod/disk-ha`, the installer creates
@@ -128,6 +131,37 @@ Upgrade validates and retains saved credentials. If the credential file is
 missing, installation generates a new password for the local application
 database account while preserving the database. Uninstall preserves both
 accounts, the Linux group, the database, credentials, and saved data.
+
+## Listener configuration
+
+`DDiskHA.CMDB_NETWORK` defines the `http` listener's defaults: `0.0.0.0:23300`.
+Installation creates `/opt/prod/diskha/conf/diskha.json` from those defaults
+only when missing. Reinstall, upgrade, and uninstall preserve an existing file.
+The root-only configuration is delivered to the service through `LoadCredential`.
+
+For example, to listen only on loopback:
+
+```json
+{
+  "network": {
+    "http": {"interface": "127.0.0.1", "port": 23300}
+  },
+  "request_timeout": 15
+}
+```
+
+A missing file, omitted listener, or omitted field uses the declared defaults.
+The request timeout defaults to 15 seconds. Interfaces must be IPv4 addresses;
+ports must be integers from 1 to 65535. Unknown settings and invalid JSON fail
+with the configuration filename. Settings are read once at startup.
+`--config <path>` selects a different JSON file; `--host` and `--port` override
+resolved settings for one invocation.
+
+After editing, run `sudo scripts/restart.sh` from the checkout. It validates the
+configuration before restarting the service, then checks readiness at the resolved
+address and port. A wildcard binding uses loopback for the local readiness request.
+The former `conf/web-interface.cfg` format is no longer read or migrated;
+configure the new JSON file when installing this update.
 
 ## Service checks
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from diskha.constants.DDiskHA import DDiskHA
 from diskha.interface.DirectoryInspection import DirectoryInspection
 from diskha.interface.HealthConfiguration import HealthConfiguration
 from diskha.interface.MountInspection import MountInspection
@@ -17,8 +18,8 @@ from diskha.interface.SyncSchedule import SyncSchedule
 class DriveConfiguration:
     @staticmethod
     def read(root: Path) -> dict:
-        configuration = SyncConfiguration(root / "conf/sync.json")
-        disks = configuration.disks or HealthConfiguration(root / "conf/health.json").disks
+        configuration = SyncConfiguration(root / DDiskHA.CONFIG_SUBDIR / "sync.json")
+        disks = configuration.disks or HealthConfiguration(root / DDiskHA.CONFIG_SUBDIR / "health.json").disks
         result = {}
         for number, role in enumerate(("source", "target")):
             path = getattr(configuration, role)
@@ -54,12 +55,12 @@ class DriveConfiguration:
         # the detected disks is written: one atomic publication changes both workers.
         with ExitStack() as stack:
             for name in ("health", "sync"):
-                lock = stack.enter_context((root / f"conf/{name}.lock").open("a"))
+                lock = stack.enter_context((root / DDiskHA.CONFIG_SUBDIR / f"{name}.lock").open("a"))
                 try:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except BlockingIOError:
                     raise OSError("A health check, sync, or settings update is active; retry after it finishes.") from None
-            path = root / "conf/sync.json"
+            path = root / DDiskHA.CONFIG_SUBDIR / "sync.json"
             previous = json.loads(path.read_text(encoding="utf-8"))
             SyncConfiguration(path)
             detected = cls.check(source, target)

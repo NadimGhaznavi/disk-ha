@@ -26,7 +26,7 @@ def dispatch(request: dict) -> dict:
     if request == {"action": "read-sync"}:
         return SyncSchedule.read()
     if request == {"action": "contact"}:
-        configuration = HealthConfiguration(Path(DDiskHA.INSTALL_DIR) / "conf/health.json")
+        configuration = HealthConfiguration(Path(DDiskHA.INSTALL_DIR) / DDiskHA.CONFIG_SUBDIR / "health.json")
         return {"recipient": (configuration.notification.recipient
                               if configuration.notification is not None else None)}
     if (isinstance(request, dict) and set(request) == {"action", "enabled", "expression"}
