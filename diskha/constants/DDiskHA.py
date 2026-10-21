@@ -4,11 +4,11 @@ from typing import Final
 
 
 class DDiskHA:
-    VERSION: Final[str] = "2.3.2"
+    VERSION: Final[str] = "2.4.0"
     CMDB_TYPE: Final[str] = "application"
     CMDB_SUBTYPE: Final[str] = "Disk Monitoring and Mirroring"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "Apollo"
+    CMDB_CODENAME: Final[str] = "Lithium"
     CMDB_COMPONENTS: Final[tuple[tuple[str, str], ...]] = (
         ("Configuration", "conf"),
         ("Saved Data", "data"),
