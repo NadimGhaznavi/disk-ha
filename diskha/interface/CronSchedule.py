@@ -63,7 +63,7 @@ class CronSchedule:
         if type(enabled) is not bool or not isinstance(expression, str):
             raise ValueError("Provide an enabled flag and a cron expression.")
         expression = validate_expression(expression) if expression or enabled else None
-        path = root / "conf" / cls.CONFIG_NAME
+        path = root / DDiskHA.CONFIG_SUBDIR / cls.CONFIG_NAME
         with path.with_suffix(".lock").open("a") as stream:
             try:
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -82,8 +82,8 @@ class CronSchedule:
     @classmethod
     def apply(cls, root: Path, configuration) -> None:
         # Both schedules edit the same root crontab; serialize their read/write cycles.
-        (root / "conf").mkdir(mode=0o700, exist_ok=True)
-        with (root / "conf/cron.lock").open("a") as stream:
+        (root / DDiskHA.CONFIG_SUBDIR).mkdir(mode=0o700, exist_ok=True)
+        with (root / DDiskHA.CONFIG_SUBDIR / "cron.lock").open("a") as stream:
             try:
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
@@ -97,9 +97,9 @@ class CronSchedule:
                  if not line.rstrip().endswith("# " + cls.COMMENT)]
         if configuration is not None and configuration.enabled:
             command = shlex.join([str(root / "bin" / cls.RUNNER_NAME), "--config",
-                                  str(root / "conf" / cls.CONFIG_NAME), "--result",
-                                  str(root / "data" / cls.RESULT_NAME)])
-            command += " >> " + shlex.quote(str(root / "data" / cls.LOG_NAME)) + " 2>&1"
+                                  str(root / DDiskHA.CONFIG_SUBDIR / cls.CONFIG_NAME), "--result",
+                                  str(root / DDiskHA.DATA_SUBDIR / cls.RESULT_NAME)])
+            command += " >> " + shlex.quote(str(root / DDiskHA.DATA_SUBDIR / cls.LOG_NAME)) + " 2>&1"
             command = command.replace("%", r"\%")
             lines.append(f"{configuration.expression} {command} # {cls.COMMENT}")
         updated = "\n".join(lines) + ("\n" if lines else "")

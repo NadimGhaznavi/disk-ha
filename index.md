@@ -75,18 +75,9 @@ There are four service units, but only one persistent application server.
 
 ## Configuring the Web Interface
 
-The installation includes a `/opt/prod/diskha/conf/web-interface.cfg` file that lets you configure:
-
-- The network interface to bind to (e.g. `0.0.0.0.` is all, `127.0.0.1` is only localhost).
-- The port number that the web service listens on.
-- The HTTP request timeout in seconds.
-
-```sh
-[web]
-host = 0.0.0.0
-port = 23300
-request_timeout = 15
-```
+Network and timeout settings are in `/opt/prod/diskha/conf/diskha.json`.
+See [listener configuration]({{ site.baseurl }}{% link pages/web-interface.md %}#listener-configuration)
+for defaults, overrides, and restart instructions.
 
 ---
 
@@ -126,6 +117,11 @@ This section shows the configured Gmail address and also includes an *Email Heal
 
 
 ---
+
+## Development
+
+Follow the [coding guidelines]({{ site.baseurl }}{% link pages/coding-guidelines.md %})
+when contributing changes.
 
 ## Comments? Questions? Feedback?
 

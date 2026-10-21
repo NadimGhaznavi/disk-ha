@@ -98,12 +98,20 @@ class InstallationTests(unittest.TestCase):
         source = (ROOT / "diskha/constants/DDiskHA.py").read_text()
         declarations = {node.target.id: ast.literal_eval(node.value)
                         for node in ast.walk(ast.parse(source))
-                        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)}
+                        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+                        and (node.target.id.startswith("CMDB_")
+                             or node.target.id in {"VERSION", "INSTALL_DIR"})}
         self.assertEqual(declarations["INSTALL_DIR"], "/opt/prod/" + name.lower())
         installer.install()
         constants = self.target / name.lower() / "constants" / ("D" + name + ".py")
         self.assertEqual(constants.read_text(), source)
         self.assertTrue(declarations["VERSION"])
+
+    def test_installer_generates_network_settings_from_declaration(self):
+        with patch.object(installer.DDiskHA, "CMDB_NETWORK", (("http", "127.0.0.2", 23456),)):
+            installer.install()
+        settings = json.loads((self.target / "conf/diskha.json").read_text())
+        self.assertEqual(settings["network"], {"http": {"interface": "127.0.0.2", "port": 23456}})
 
     def test_legacy_upgrade_preserves_state_and_locks_through_canonical_alias(self):
         installer.install()
@@ -196,9 +204,9 @@ class InstallationTests(unittest.TestCase):
                              (ROOT / "diskha/server/static/index.html").read_bytes())
         service = Path(installer.DDiskHA.WEB_SERVICE_FILE)
         self.assertEqual(service.stat().st_mode & 0o777, 0o644)
-        self.assertIn(f"ExecStart={executable} --config ${{CREDENTIALS_DIRECTORY}}/web-interface.cfg",
+        self.assertIn(f"ExecStart={executable} --config ${{CREDENTIALS_DIRECTORY}}/diskha.json",
                       service.read_text())
-        self.assertIn(f"LoadCredential=web-interface.cfg:{self.target}/conf/web-interface.cfg", service.read_text())
+        self.assertIn(f"LoadCredential=diskha.json:{self.target}/conf/diskha.json", service.read_text())
         self.assertNotIn("--port", service.read_text())
         self.assertIn("User=diskha\nGroup=diskha", service.read_text())
         self.assertIn(f"LoadCredential=database.env:{installer.DDiskHA.DATABASE_ENV}", service.read_text())
@@ -270,12 +278,12 @@ class InstallationTests(unittest.TestCase):
 
     def test_web_configuration_is_private_and_survives_upgrade_and_removal(self):
         installer.install()
-        configuration = self.target / "conf/web-interface.cfg"
-        self.assertEqual(configuration.read_bytes(), (ROOT / "conf/web-interface.cfg").read_bytes())
+        configuration = self.target / "conf/diskha.json"
+        self.assertEqual(json.loads(configuration.read_text())["network"]["http"]["port"], 23300)
         self.assertEqual(configuration.stat().st_mode & 0o777, 0o600)
         with zipfile.ZipFile(self.target / "bin/disk-ha-web") as archive:
             self.assertIn("diskha/interface/WebConfiguration.py", archive.namelist())
-        saved = "[web]\nhost = localhost\nport = 23400\nrequest_timeout = 30\n"
+        saved = '{"request_timeout":30}'
         configuration.write_text(saved)
         installer.install()
         self.assertEqual(configuration.read_text(), saved)
@@ -287,10 +295,10 @@ class InstallationTests(unittest.TestCase):
         installer.install()
         archive = self.target / "bin/disk-ha-web"
         previous = archive.read_bytes()
-        configuration = self.target / "conf/web-interface.cfg"
-        configuration.write_text("[web]\nhost = localhost\nport = 0\nrequest_timeout = 15\n")
+        configuration = self.target / "conf/diskha.json"
+        configuration.write_text('{"network": {"http": {"interface": "127.0.0.1", "port": 0}}, "request_timeout": 15}')
         self.restart.reset_mock()
-        with self.assertRaisesRegex(ValueError, "port must be between"):
+        with self.assertRaisesRegex(ValueError, "port must be an integer between"):
             installer.install()
         self.assertEqual(archive.read_bytes(), previous)
         self.restart.assert_not_called()

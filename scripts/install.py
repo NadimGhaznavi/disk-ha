@@ -33,11 +33,11 @@ def systemctl(*arguments: str) -> None:
 
 
 def restart() -> None:
-    configuration = WebConfiguration(installation_root() / "conf/web-interface.cfg")
+    configuration = WebConfiguration(installation_root() / DDiskHA.CONFIG_SUBDIR / "diskha.json")
     service = Path(DDiskHA.WEB_SERVICE_FILE).name
     systemctl("restart", service)
-    host = "127.0.0.1" if configuration.host == "0.0.0.0" else configuration.host
-    url = f"http://{host}:{configuration.port}{DDiskHA.WEB_READY_PATH}"
+    host, port = configuration.network.destination("http")
+    url = f"http://{host}:{port}{DDiskHA.WEB_READY_PATH}"
     opener = build_opener(ProxyHandler({}))
     deadline = time.monotonic() + 10
     while True:
@@ -102,29 +102,30 @@ def install() -> None:
     sync_upgrading = (root / "bin/disk-ha-sync").exists()
     root.mkdir(parents=True, exist_ok=True)
     root.chmod(0o755)
-    for name in ("bin", "conf", "data"):
+    for name in ("bin", DDiskHA.CONFIG_SUBDIR, DDiskHA.DATA_SUBDIR):
         directory = root / name
         directory.mkdir(exist_ok=True)
         directory.chmod(0o755 if name == "bin" else 0o700)
-    web_configuration = root / "conf/web-interface.cfg"
+    web_configuration = root / DDiskHA.CONFIG_SUBDIR / "diskha.json"
+    resolved_web = WebConfiguration(web_configuration)
     if not web_configuration.exists():
         with web_configuration.open("x") as stream:
-            stream.write((REPOSITORY / "conf/web-interface.cfg").read_text())
+            json.dump(resolved_web.settings(), stream, indent=2)
+            stream.write("\n")
     web_configuration.chmod(0o600)
-    WebConfiguration(web_configuration)
     # Root writes SMART results; the Web UI group may only read them.
-    os.chown(root / "data", os.geteuid(), account.pw_gid)
-    (root / "data").chmod(0o750)
-    configuration = root / "conf/health.json"
+    os.chown(root / DDiskHA.DATA_SUBDIR, os.geteuid(), account.pw_gid)
+    (root / DDiskHA.DATA_SUBDIR).chmod(0o750)
+    configuration = root / DDiskHA.CONFIG_SUBDIR / "health.json"
     if not configuration.exists():
         with configuration.open("x") as stream:
-            stream.write((REPOSITORY / "conf/health.json").read_text())
+            stream.write((REPOSITORY / "conf" / "health.json").read_text())
     configuration.chmod(0o600)
     health = HealthConfiguration(configuration)
-    sync_configuration = root / "conf/sync.json"
+    sync_configuration = root / DDiskHA.CONFIG_SUBDIR / "sync.json"
     if not sync_configuration.exists():
         with sync_configuration.open("x") as stream:
-            stream.write((REPOSITORY / "conf/sync.json").read_text())
+            stream.write((REPOSITORY / "conf" / "sync.json").read_text())
     sync_configuration.chmod(0o600)
     sync = SyncConfiguration(sync_configuration)
     if sync.enabled:
@@ -135,13 +136,13 @@ def install() -> None:
         for executable in (DDiskHA.SMARTCTL, DDiskHA.MSMTP, DDiskHA.CRONTAB):
             if not os.access(executable, os.X_OK):
                 raise ValueError(f"Required executable is missing: {executable}")
-    log = root / "data/health.log"
+    log = root / DDiskHA.DATA_SUBDIR / "health.log"
     if log.is_symlink() or (log.exists() and (not log.is_file() or log.stat().st_uid != os.geteuid())):
         raise ValueError("Health log must be a regular file owned by root.")
     log.touch(exist_ok=True)
     os.chown(log, os.geteuid(), account.pw_gid)
     log.chmod(0o640)
-    sync_log = root / "data/sync.log"
+    sync_log = root / DDiskHA.DATA_SUBDIR / "sync.log"
     if sync_log.is_symlink() or (sync_log.exists() and (not sync_log.is_file() or sync_log.stat().st_uid != os.geteuid())):
         raise ValueError("Sync log must be a regular file owned by root.")
     sync_log.touch(exist_ok=True)
@@ -201,23 +202,23 @@ def install() -> None:
     health_service.write_text(
         "[Unit]\nDescription=disk-ha manual health check\n\n"
         "[Service]\nType=oneshot\nUser=root\nGroup=root\nUMask=0077\nTimeoutStartSec=0\n"
-        f"ExecStart={root}/bin/disk-ha-check --config {configuration} --result {root}/data/health.json\n"
-        f"StandardOutput=append:{root}/data/health.log\nStandardError=append:{root}/data/health.log\n")
+        f"ExecStart={root}/bin/disk-ha-check --config {configuration} --result {root / DDiskHA.DATA_SUBDIR}/health.json\n"
+        f"StandardOutput=append:{root / DDiskHA.DATA_SUBDIR}/health.log\nStandardError=append:{root / DDiskHA.DATA_SUBDIR}/health.log\n")
     health_service.chmod(0o644)
     email_service = Path(DDiskHA.EMAIL_REPORT_SERVICE_FILE)
     email_service.write_text(
         "[Unit]\nDescription=disk-ha email verbose disk report\n\n"
         "[Service]\nType=oneshot\nUser=root\nGroup=root\nUMask=0077\nTimeoutStartSec=0\n"
         f"ExecStart={root}/bin/disk-ha-check --config {configuration} "
-        f"--result {root}/data/health.json --email-report\n"
-        f"StandardOutput=append:{root}/data/health.log\nStandardError=append:{root}/data/health.log\n")
+        f"--result {root / DDiskHA.DATA_SUBDIR}/health.json --email-report\n"
+        f"StandardOutput=append:{root / DDiskHA.DATA_SUBDIR}/health.log\nStandardError=append:{root / DDiskHA.DATA_SUBDIR}/health.log\n")
     email_service.chmod(0o644)
     sync_service = Path(DDiskHA.SYNC_SERVICE_FILE)
     sync_service.write_text(
         "[Unit]\nDescription=disk-ha manual data sync\n\n"
         "[Service]\nType=oneshot\nUser=root\nGroup=root\nUMask=0077\nTimeoutStartSec=0\n"
-        f"ExecStart={root}/bin/disk-ha-sync --config {sync_configuration} --result {root}/data/sync-output.log\n"
-        f"StandardOutput=append:{root}/data/sync.log\nStandardError=append:{root}/data/sync.log\n")
+        f"ExecStart={root}/bin/disk-ha-sync --config {sync_configuration} --result {root / DDiskHA.DATA_SUBDIR}/sync-output.log\n"
+        f"StandardOutput=append:{root / DDiskHA.DATA_SUBDIR}/sync.log\nStandardError=append:{root / DDiskHA.DATA_SUBDIR}/sync.log\n")
     sync_service.chmod(0o644)
     # Grant exactly this start command, without access to other units or commands.
     sudoers = Path(DDiskHA.HEALTH_SUDOERS_FILE)
@@ -243,8 +244,8 @@ def install() -> None:
         "[Unit]\nDescription=disk-ha Web UI\nAfter=network.target\n\n"
         f"[Service]\nType=exec\nUser={DDiskHA.SERVICE_USER}\nGroup={DDiskHA.SERVICE_GROUP}\n"
         f"LoadCredential=database.env:{DDiskHA.DATABASE_ENV}\n"
-        f"LoadCredential=web-interface.cfg:{web_configuration}\n"
-        f"ExecStart={root}/bin/disk-ha-web --config ${{CREDENTIALS_DIRECTORY}}/web-interface.cfg\n"
+        f"LoadCredential=diskha.json:{web_configuration}\n"
+        f"ExecStart={root}/bin/disk-ha-web --config ${{CREDENTIALS_DIRECTORY}}/diskha.json\n"
         "Restart=on-failure\nRestartSec=2\n\n[Install]\nWantedBy=multi-user.target\n")
     service.chmod(0o644)
     systemctl("daemon-reload")
@@ -275,12 +276,12 @@ def install() -> None:
 
 def uninstall() -> None:
     root = installation_root()
-    configuration = root / "conf/health.json"
+    configuration = root / DDiskHA.CONFIG_SUBDIR / "health.json"
     if configuration.parent.exists():
         with configuration.with_suffix(".lock").open("a") as stream:
             fcntl.flock(stream, fcntl.LOCK_EX)
             HealthSchedule.apply(root, None)
-        with (root / "conf/sync.lock").open("a") as stream:
+        with (root / DDiskHA.CONFIG_SUBDIR / "sync.lock").open("a") as stream:
             fcntl.flock(stream, fcntl.LOCK_EX)
             SyncSchedule.apply(root, None)
     service = Path(DDiskHA.WEB_SERVICE_FILE)

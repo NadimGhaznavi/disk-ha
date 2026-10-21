@@ -270,11 +270,12 @@ class WebTests(unittest.TestCase):
                     redirect_stdout(io.StringIO()):
                 installer.install()
             archive = target / "bin/disk-ha-web"
-            configuration = target / "conf/web-interface.cfg"
+            configuration = target / "conf/diskha.json"
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 port = listener.getsockname()[1]
-            configuration.write_text(f"[web]\nhost = 127.0.0.1\nport = {port}\nrequest_timeout = 1\n")
+            configuration.write_text(json.dumps({"network": {"http": {"interface": "127.0.0.1", "port": port}},
+                                                      "request_timeout": 1}))
             process = subprocess.Popen(
                 [str(archive), "--config", str(configuration)],
                 cwd=temporary, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -300,13 +301,14 @@ class WebTests(unittest.TestCase):
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 new_port = listener.getsockname()[1]
-            configuration.write_text(f"[web]\nhost = localhost\nport = {new_port}\nrequest_timeout = 5\n")
+            configuration.write_text(json.dumps({"network": {"http": {"interface": "127.0.0.1", "port": new_port}},
+                                                      "request_timeout": 5}))
             process = subprocess.Popen(
                 [str(archive), "--config", str(configuration)],
                 cwd=temporary, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
                 self.assertTrue(select.select([process.stdout], [], [], 5)[0], "Restart timed out")
-                self.assertIn(f"http://localhost:{new_port}/", process.stdout.readline())
+                self.assertIn(f"http://127.0.0.1:{new_port}/", process.stdout.readline())
                 with self.opener.open(f"http://127.0.0.1:{new_port}/ready", timeout=2) as response:
                     self.assertEqual(json.load(response), {"ready": True})
             finally:
@@ -327,14 +329,14 @@ class WebTests(unittest.TestCase):
             stdout, stderr = process.communicate(timeout=5)
             self.assertEqual(process.returncode, 2)
             self.assertIn("--port must be between", stderr)
-            configuration.write_text("[web]\nhost = 127.0.0.1\nport = 0\nrequest_timeout = 15\n")
+            configuration.write_text('{"network": {"http": {"interface": "127.0.0.1", "port": 0}}, "request_timeout": 15}')
             result = subprocess.run([str(archive), "--config", str(configuration)],
                                     cwd=temporary, capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 1)
             self.assertIn("Invalid web configuration", result.stderr)
-            self.assertIn("port must be between", result.stderr)
+            self.assertIn("port must be an integer between", result.stderr)
             self.assertNotIn("Web UI:", result.stdout)
-            configuration.unlink()
+            configuration.write_text("{")
             result = subprocess.run([str(archive), "--config", str(configuration)],
                                     cwd=temporary, capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 1)
@@ -348,8 +350,8 @@ class ReadinessTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         (self.root / "conf").mkdir()
-        self.configuration = self.root / "conf/web-interface.cfg"
-        self.configuration.write_bytes((ROOT / "conf/web-interface.cfg").read_bytes())
+        self.configuration = self.root / "conf/diskha.json"
+        self.configuration.write_text("{}")
         root = patch.object(installer, "installation_root", return_value=self.root)
         root.start()
         self.addCleanup(root.stop)
@@ -367,8 +369,17 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(args[0].method, "HEAD")
         self.assertEqual(kwargs["timeout"], 1)
 
+    def test_restart_uses_changed_listener_declaration(self):
+        opener = MagicMock()
+        opener.open.return_value.__enter__.return_value.status = 200
+        with patch.object(installer.DDiskHA, "CMDB_NETWORK", (("http", "127.0.0.2", 23456),)), \
+                patch.object(installer, "systemctl"), \
+                patch.object(installer, "build_opener", return_value=opener), redirect_stdout(io.StringIO()):
+            installer.restart()
+        self.assertEqual(opener.open.call_args.args[0].full_url, "http://127.0.0.2:23456/ready")
+
     def test_restart_checks_configured_host_and_port(self):
-        self.configuration.write_text("[web]\nhost = 127.0.0.2\nport = 23400\nrequest_timeout = 30\n")
+        self.configuration.write_text('{"network": {"http": {"interface": "127.0.0.2", "port": 23400}}, "request_timeout": 30}')
         opener = MagicMock()
         opener.open.return_value.__enter__.return_value.status = 200
         with patch.object(installer, "systemctl"), \
@@ -377,7 +388,7 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(opener.open.call_args.args[0].full_url, "http://127.0.0.2:23400/ready")
 
     def test_invalid_configuration_prevents_restart(self):
-        self.configuration.write_text("[web]\nport = 0\n")
+        self.configuration.write_text('{"network":{"http":{"port":0}}}')
         with patch.object(installer, "systemctl") as control:
             with self.assertRaisesRegex(ValueError, "Invalid web configuration"):
                 installer.restart()
