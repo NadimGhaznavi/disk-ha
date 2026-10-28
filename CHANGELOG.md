@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-10-28 @ 04:55
+
+- Updated README.
+
 ## [2.4.0] - 2026-10-21 @ 02:26
 
 This release is named for the element **Lithium (Li)**, the lightest of all metals.
